@@ -368,13 +368,12 @@ export default function Queue({ initialState }: { initialState: QueueState }) {
 			<section className="phase phase-turn">
 				<div className="turn-kicker">The Queue · Now Serving {pad(e!.ticketNumber)}</div>
 				<div className="turn-title">This is your turn, congratulations!</div>
-				{behind > 0 && (
 					<div className="turn-note">
-						{fmt(behind)} {behind === 1 ? "person is" : "people are"} waiting for you to finish
-						your turn.
-					</div>
-				)}
-				<div className="turn-note">Leave to finish your turn.</div>
+						 {
+              behind === 0? "nobody is"
+              : behind === 1 ? `${fmt(behind)} person is`
+              : `${fmt(behind)} people are`
+             } waiting for you to leave and finish your turn.</div>
 			</section>
 		);
 	}
