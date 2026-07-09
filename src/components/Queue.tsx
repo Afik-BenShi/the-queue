@@ -196,6 +196,24 @@ export default function Queue({ initialState }: { initialState: QueueState }) {
 		}
 	}
 
+	// Give up your turn and re-queue at the back: leave, then rejoin for a fresh
+	// ticket. Rendered only at the end so the "removed" screen never flashes.
+	async function goToBack() {
+		if (!isWaiting() || flags.current.leave || flags.current.join) return;
+		flags.current.leave = true;
+		try {
+			await request("/api/queue/leave", { sessionId: sessionId() });
+			saveEntry(null);
+			const data = await request("/api/queue/join", { sessionId: sessionId() });
+			applyQueueData(data);
+		} catch (error) {
+			console.error(error);
+			render();
+		} finally {
+			flags.current.leave = false;
+		}
+	}
+
 	async function buyPass() {
 		passBtnDisabled.current = true;
 		passStatus.current = "Opening Wix checkout...";
@@ -504,6 +522,15 @@ export default function Queue({ initialState }: { initialState: QueueState }) {
               : behind === 1 ? `${fmt(behind)} person is`
               : `${fmt(behind)} people are`
              } waiting for you to leave and finish your turn.</div>
+				<button
+					type="button"
+					className="pass-button"
+					style={{ marginTop: 32 }}
+					disabled={flags.current.leave}
+					onClick={goToBack}
+				>
+					Go to the back of the line
+				</button>
 			</section>
 		);
 	} else {
