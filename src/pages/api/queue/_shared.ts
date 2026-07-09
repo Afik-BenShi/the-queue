@@ -86,14 +86,18 @@ export async function findLatestEntry(sessionId: string) {
 	return (result.items[0] as QueueEntry | undefined) ?? null;
 }
 
-// Counts real waiting entries. beforeTicket → only those ahead of a given ticket.
-// ponytail: totalCount from a limit(1) find; swap to .count() if the SDK adds it.
-export async function countWaitingEntries(beforeTicket?: number) {
+// One query for the whole waiting line, ordered by ticket. Deriving both the
+// total and the caller's position from a SINGLE result keeps them consistent —
+// separate count queries disagree under the store's read-after-write lag.
+// ponytail: fetches up to 1000 waiting rows; a real crowd never gets near that.
+export async function getWaitingTickets() {
 	const queryEntries = auth.elevate(items.query) as typeof items.query;
-	let query = queryEntries(ENTRIES_COLLECTION).eq("status", "waiting");
-	if (beforeTicket != null) query = query.lt("ticketNumber", beforeTicket);
-	const result = await query.limit(1).find();
-	return result.totalCount ?? result.items.length;
+	const result = await queryEntries(ENTRIES_COLLECTION)
+		.eq("status", "waiting")
+		.ascending("ticketNumber")
+		.limit(1000)
+		.find();
+	return (result.items as QueueEntry[]).map((e) => Number(e.ticketNumber));
 }
 
 export async function snapshot(state: QueueState, entry?: QueueEntry | null) {
@@ -104,11 +108,11 @@ export async function snapshot(state: QueueState, entry?: QueueEntry | null) {
 
 	// Real headcount, not ticket arithmetic: people leave from the middle, so
 	// (lastIssued - currentHead) counts departed tickets as if still in line.
+	const tickets = await getWaitingTickets();
 	const position =
-		isWaiting && ticketNumber ? (await countWaitingEntries(ticketNumber)) + 1 : null;
-	// Clamp to position: a just-inserted row can lag the count index (read-after-write),
-	// so never report fewer in line than the caller's own place.
-	const waiting = Math.max(await countWaitingEntries(), position ?? 0);
+		isWaiting && ticketNumber ? tickets.filter((t) => t < ticketNumber).length + 1 : null;
+	// Include self even if this request's own insert hasn't landed in the index yet.
+	const waiting = Math.max(tickets.length, position ?? 0);
 
 	return {
 		state: {

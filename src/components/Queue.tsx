@@ -339,7 +339,7 @@ export default function Queue({ initialState }: { initialState: QueueState }) {
 				<div className="join-label">
 					{focused ? "Assigning number" : "Focus this window to take a number"}
 				</div>
-				<div className="join-display">{pad(e?.ticketNumber)}</div>
+				<div className="join-display">{pad(e?.ticketNumber || lastIssued + 1)}</div>
 				<div className="join-bar">
 					<div className="join-bar-fill" />
 				</div>
