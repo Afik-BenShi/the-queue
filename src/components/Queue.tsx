@@ -84,6 +84,7 @@ export default function Queue({ initialState }: { initialState: QueueState }) {
 	const passStatus = useRef("");
 	const passBtnDisabled = useRef(false);
 	const passOverlay = useRef<{ from: number; to: number } | null>(null);
+	const checkoutUrl = useRef<string | null>(null);
 
 	const isWaiting = () => entry.current?.status === "waiting";
 	const secondsUntilUnfocusLeave = () => {
@@ -121,7 +122,10 @@ export default function Queue({ initialState }: { initialState: QueueState }) {
 	}
 
 	async function heartbeat() {
-		if (!isFocusedHere()) {
+		// While the checkout modal is open, keep beating regardless of focus — the
+		// iframe steals window focus but the buyer is still here and must keep their
+		// place (otherwise the 60s server-side stale sweep would evict them).
+		if (!checkoutUrl.current && !isFocusedHere()) {
 			startUnfocusGrace();
 			return;
 		}
@@ -147,6 +151,9 @@ export default function Queue({ initialState }: { initialState: QueueState }) {
 	}
 
 	function startUnfocusGrace() {
+		// Focus moving into our own checkout iframe fires a window blur, but the
+		// tab is still focused and the heartbeat is still alive — don't penalize it.
+		if (checkoutUrl.current) return;
 		if (!isWaiting()) return;
 		if (!unfocusStartedAt.current) unfocusStartedAt.current = Date.now();
 		render();
@@ -201,13 +208,41 @@ export default function Queue({ initialState }: { initialState: QueueState }) {
 		render();
 		try {
 			const data = await request("/api/pass/checkout", { origin: window.location.origin });
-			window.location.href = data.url;
+			// Open in an on-page modal instead of navigating away, so the heartbeat
+			// keeps running and the buyer never loses their place in line.
+			checkoutUrl.current = data.url;
+			passStatus.current = "Complete your purchase — your place is held.";
+			render();
 		} catch (error) {
 			passStatus.current = "The pass office failed to open.";
 			passBtnDisabled.current = false;
 			render();
 			console.error(error);
 		}
+	}
+
+	function closeCheckout() {
+		checkoutUrl.current = null;
+		passBtnDisabled.current = false;
+		render();
+	}
+
+	// Fires on every iframe navigation. Once checkout redirects back to our own
+	// origin (?pass=redeem / ?pass=cancelled) we can read it; Wix/payment steps
+	// are cross-origin and throw, so we just wait for the next load.
+	function onCheckoutFrameLoad(frame: HTMLIFrameElement) {
+		let params: URLSearchParams;
+		try {
+			const loc = frame.contentWindow?.location;
+			if (!loc || loc.origin !== window.location.origin) return;
+			params = new URLSearchParams(loc.search);
+		} catch {
+			return;
+		}
+		if (!params.has("pass")) return;
+		handlePassReturn(params);
+		closeCheckout();
+		tryRedeemPendingPass();
 	}
 
 	async function tryRedeemPendingPass() {
@@ -253,8 +288,7 @@ export default function Queue({ initialState }: { initialState: QueueState }) {
 		}
 	}
 
-	function captureCheckoutReturn() {
-		const params = new URLSearchParams(window.location.search);
+	function handlePassReturn(params: URLSearchParams) {
 		if (params.get("pass") === "cancelled") {
 			passStatus.current = "The pass was abandoned. The queue stayed pure.";
 		}
@@ -267,6 +301,12 @@ export default function Queue({ initialState }: { initialState: QueueState }) {
 				passStatus.current = "Checkout returned without an order.";
 			}
 		}
+	}
+
+	// Legacy full-page-redirect return (still works if an old link lands here).
+	function captureCheckoutReturn() {
+		const params = new URLSearchParams(window.location.search);
+		handlePassReturn(params);
 		if (params.has("pass")) window.history.replaceState({}, "", window.location.pathname);
 	}
 
@@ -332,8 +372,79 @@ export default function Queue({ initialState }: { initialState: QueueState }) {
 
 	const pct = span > 0 && position ? Math.max(3, Math.min(95, (position / span) * 100)) : 3;
 
+	// Rendered outside the phase switch so it survives a waiting→turn flip mid-purchase.
+	const checkoutModal = checkoutUrl.current ? (
+		<div
+			style={{
+				position: "fixed",
+				inset: 0,
+				zIndex: 1000,
+				display: "flex",
+				alignItems: "center",
+				justifyContent: "center",
+			}}
+		>
+			<div
+				onClick={closeCheckout}
+				style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.72)" }}
+			/>
+			<div
+				style={{
+					position: "relative",
+					width: "min(480px, 94vw)",
+					height: "min(760px, 92vh)",
+					background: "#0f1115",
+					border: "1px solid #2a2f37",
+					borderRadius: 10,
+					overflow: "hidden",
+					display: "flex",
+					flexDirection: "column",
+					boxShadow: "0 24px 70px rgba(0,0,0,0.6)",
+				}}
+			>
+				<div
+					style={{
+						display: "flex",
+						alignItems: "center",
+						justifyContent: "space-between",
+						padding: "10px 14px",
+						borderBottom: "1px solid #2a2f37",
+						fontSize: 11,
+						letterSpacing: "0.14em",
+						textTransform: "uppercase",
+						color: "#9aa0aa",
+					}}
+				>
+					<span>Wix Checkout · your place is held</span>
+					<button
+						type="button"
+						onClick={closeCheckout}
+						aria-label="Close checkout"
+						style={{
+							background: "none",
+							border: "none",
+							color: "#e6e8ea",
+							fontSize: 18,
+							cursor: "pointer",
+							lineHeight: 1,
+						}}
+					>
+						✕
+					</button>
+				</div>
+				<iframe
+					src={checkoutUrl.current}
+					title="Pass checkout"
+					onLoad={(ev) => onCheckoutFrameLoad(ev.currentTarget)}
+					style={{ border: "none", flex: 1, width: "100%", background: "#fff" }}
+				/>
+			</div>
+		</div>
+	) : null;
+
+	let content: JSX.Element;
 	if (phase === "joining") {
-		return (
+		content = (
 			<section className="phase phase-joining">
 				<div className="join-kicker">The Queue — Facility 01</div>
 				<div className="join-label">
@@ -346,10 +457,8 @@ export default function Queue({ initialState }: { initialState: QueueState }) {
 				<div className="join-note">Do not close this window</div>
 			</section>
 		);
-	}
-
-	if (phase === "removed") {
-		return (
+	} else if (phase === "removed") {
+		content = (
 			<section className="phase phase-removed">
 				<div className="removed-kicker">Place Released</div>
 				<div className="removed-title">You have left the line.</div>
@@ -361,10 +470,8 @@ export default function Queue({ initialState }: { initialState: QueueState }) {
 				<div className="removed-note">Reopen this page to take a new number</div>
 			</section>
 		);
-	}
-
-	if (phase === "turn") {
-		return (
+	} else if (phase === "turn") {
+		content = (
 			<section className="phase phase-turn">
 				<div className="turn-kicker">The Queue · Now Serving {pad(e!.ticketNumber)}</div>
 				<div className="turn-title">This is your turn, congratulations!</div>
@@ -376,11 +483,10 @@ export default function Queue({ initialState }: { initialState: QueueState }) {
              } waiting for you to leave and finish your turn.</div>
 			</section>
 		);
-	}
-
-	// waiting
-	return (
-		<>
+	} else {
+		// waiting
+		content = (
+			<>
 			<section className="phase phase-waiting" aria-live="polite">
 				<header className="wq-header">
 					<div className="wq-brand">The Queue</div>
@@ -532,6 +638,14 @@ export default function Queue({ initialState }: { initialState: QueueState }) {
 					</div>
 				</div>
 			)}
+		</>
+		);
+	}
+
+	return (
+		<>
+			{content}
+			{checkoutModal}
 		</>
 	);
 }
