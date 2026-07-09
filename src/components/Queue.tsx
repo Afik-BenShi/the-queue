@@ -122,10 +122,7 @@ export default function Queue({ initialState }: { initialState: QueueState }) {
 	}
 
 	async function heartbeat() {
-		// While the checkout modal is open, keep beating regardless of focus — the
-		// iframe steals window focus but the buyer is still here and must keep their
-		// place (otherwise the 60s server-side stale sweep would evict them).
-		if (!checkoutUrl.current && !isFocusedHere()) {
+		if (!isFocusedHere()) {
 			startUnfocusGrace();
 			return;
 		}
@@ -151,9 +148,6 @@ export default function Queue({ initialState }: { initialState: QueueState }) {
 	}
 
 	function startUnfocusGrace() {
-		// Focus moving into our own checkout iframe fires a window blur, but the
-		// tab is still focused and the heartbeat is still alive — don't penalize it.
-		if (checkoutUrl.current) return;
 		if (!isWaiting()) return;
 		if (!unfocusStartedAt.current) unfocusStartedAt.current = Date.now();
 		render();
