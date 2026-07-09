@@ -1,0 +1,24 @@
+{
+  "siteId": "96d48053-ab0c-4be2-a3a1-542cd96963f0",
+  "storesAppId": "215238eb-22a5-4c36-9e7b-e7c08025e04e",
+  "catalogVersion": "V3_CATALOG",
+  "passProduct": {
+    "id": "31143257-ea64-4f08-bb91-cbb56db85f01",
+    "handle": "queue-pass-over-one-person",
+    "name": "Pass Over One Person",
+    "price": "0.50",
+    "currency": null
+  },
+  "collections": {
+    "passRedemptions": {
+      "id": "pass-redemptions",
+      "fields": [
+        "orderId",
+        "sessionId",
+        "ticketBefore",
+        "ticketAfter",
+        "redeemedAt"
+      ]
+    }
+  }
+}

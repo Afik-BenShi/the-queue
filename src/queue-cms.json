@@ -1,0 +1,29 @@
+{
+  "siteId": "96d48053-ab0c-4be2-a3a1-542cd96963f0",
+  "collections": {
+    "queueState": {
+      "id": "queue-state",
+      "itemId": "df21f09c-8a11-4721-8983-5641d251b99b",
+      "fields": [
+        "title",
+        "currentHead",
+        "lastIssued",
+        "totalDepartures",
+        "startingDepth",
+        "statement",
+        "updatedAt"
+      ]
+    },
+    "queueEntries": {
+      "id": "queue-entries",
+      "fields": [
+        "ticketNumber",
+        "sessionId",
+        "status",
+        "joinedAt",
+        "leftAt",
+        "lastSeenAt"
+      ]
+    }
+  }
+}
