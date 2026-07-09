@@ -234,7 +234,7 @@ export default function Queue({ initialState }: { initialState: QueueState }) {
 			return;
 		}
 		if (!params.has("pass")) return;
-		handlePassReturn(params);
+		handlePassReturn(params.get("pass"), params.get("orderId") || params.get("orderid"));
 		closeCheckout();
 		tryRedeemPendingPass();
 	}
@@ -282,12 +282,11 @@ export default function Queue({ initialState }: { initialState: QueueState }) {
 		}
 	}
 
-	function handlePassReturn(params: URLSearchParams) {
-		if (params.get("pass") === "cancelled") {
+	function handlePassReturn(pass: string | null, orderId?: string | null) {
+		if (pass === "cancelled") {
 			passStatus.current = "The pass was abandoned. The queue stayed pure.";
 		}
-		if (params.get("pass") === "redeem") {
-			const orderId = params.get("orderId") || params.get("orderid");
+		if (pass === "redeem") {
 			if (orderId) {
 				localStorage.setItem(PENDING_PASS_KEY, orderId);
 				passStatus.current = "Pass bought. Preparing to spend it.";
@@ -300,12 +299,30 @@ export default function Queue({ initialState }: { initialState: QueueState }) {
 	// Legacy full-page-redirect return (still works if an old link lands here).
 	function captureCheckoutReturn() {
 		const params = new URLSearchParams(window.location.search);
-		handlePassReturn(params);
+		handlePassReturn(params.get("pass"), params.get("orderId") || params.get("orderid"));
 		if (params.has("pass")) window.history.replaceState({}, "", window.location.pathname);
 	}
 
 	// Mount: clock, presence loop, focus/visibility wiring. Runs once (client:only).
 	useEffect(() => {
+		// If we're loaded INSIDE our own checkout iframe (the callback URL landed
+		// here), notify the opener and stop — don't boot a second queue, don't strip
+		// the URL. The parent closes the modal and handles the result.
+		if (window.self !== window.top && window.parent) {
+			const p = new URLSearchParams(window.location.search);
+			if (p.has("pass")) {
+				window.parent.postMessage(
+					{
+						type: "queue-pass-return",
+						pass: p.get("pass"),
+						orderId: p.get("orderId") || p.get("orderid"),
+					},
+					window.location.origin,
+				);
+				return;
+			}
+		}
+
 		captureCheckoutReturn();
 
 		const tick = () => {
@@ -329,10 +346,20 @@ export default function Queue({ initialState }: { initialState: QueueState }) {
 			else heartbeat();
 		};
 		const onPageHide = () => leaveLine(true);
+		// The checkout iframe posts here when it lands on our callback URL.
+		const onMessage = (ev: MessageEvent) => {
+			if (ev.origin !== window.location.origin) return;
+			const data = ev.data;
+			if (!data || data.type !== "queue-pass-return") return;
+			handlePassReturn(data.pass, data.orderId);
+			closeCheckout();
+			tryRedeemPendingPass();
+		};
 		window.addEventListener("focus", onFocus);
 		window.addEventListener("blur", onBlur);
 		document.addEventListener("visibilitychange", onVis);
 		window.addEventListener("pagehide", onPageHide);
+		window.addEventListener("message", onMessage);
 
 		return () => {
 			window.clearInterval(clockTimer);
@@ -342,6 +369,7 @@ export default function Queue({ initialState }: { initialState: QueueState }) {
 			window.removeEventListener("blur", onBlur);
 			document.removeEventListener("visibilitychange", onVis);
 			window.removeEventListener("pagehide", onPageHide);
+			window.removeEventListener("message", onMessage);
 		};
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, []);
@@ -385,8 +413,9 @@ export default function Queue({ initialState }: { initialState: QueueState }) {
 			<div
 				style={{
 					position: "relative",
-					width: "min(480px, 94vw)",
-					height: "min(760px, 92vh)",
+					// 16:9; the 163vh cap keeps height (= width * 9/16) within the viewport.
+					width: "min(1200px, 94vw, 163vh)",
+					aspectRatio: "16 / 9",
 					background: "#0f1115",
 					border: "1px solid #2a2f37",
 					borderRadius: 10,
