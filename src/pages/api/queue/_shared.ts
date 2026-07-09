@@ -86,13 +86,29 @@ export async function findLatestEntry(sessionId: string) {
 	return (result.items[0] as QueueEntry | undefined) ?? null;
 }
 
-export function snapshot(state: QueueState, entry?: QueueEntry | null) {
+// Counts real waiting entries. beforeTicket → only those ahead of a given ticket.
+// ponytail: totalCount from a limit(1) find; swap to .count() if the SDK adds it.
+export async function countWaitingEntries(beforeTicket?: number) {
+	const queryEntries = auth.elevate(items.query) as typeof items.query;
+	let query = queryEntries(ENTRIES_COLLECTION).eq("status", "waiting");
+	if (beforeTicket != null) query = query.lt("ticketNumber", beforeTicket);
+	const result = await query.limit(1).find();
+	return result.totalCount ?? result.items.length;
+}
+
+export async function snapshot(state: QueueState, entry?: QueueEntry | null) {
 	const currentHead = Number(state.currentHead ?? 1);
 	const lastIssued = Number(state.lastIssued ?? 0);
-	const waiting = Math.max(0, lastIssued - currentHead + 1);
 	const isWaiting = entry?.status === "waiting";
 	const ticketNumber = entry?.ticketNumber ? Number(entry.ticketNumber) : null;
-	const position = isWaiting && ticketNumber ? Math.max(0, ticketNumber - currentHead + 1) : null;
+
+	// Real headcount, not ticket arithmetic: people leave from the middle, so
+	// (lastIssued - currentHead) counts departed tickets as if still in line.
+	const position =
+		isWaiting && ticketNumber ? (await countWaitingEntries(ticketNumber)) + 1 : null;
+	// Clamp to position: a just-inserted row can lag the count index (read-after-write),
+	// so never report fewer in line than the caller's own place.
+	const waiting = Math.max(await countWaitingEntries(), position ?? 0);
 
 	return {
 		state: {

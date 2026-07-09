@@ -15,7 +15,7 @@ export const GET: APIRoute = async ({ url }) => {
 		let state = await getState();
 		({ state } = await sweepStaleEntries(state));
 		const entry = (await findActiveEntry(sessionId)) ?? (await findLatestEntry(sessionId));
-		return json(snapshot(state, entry));
+		return json(await snapshot(state, entry));
 	} catch (error) {
 		console.error(error);
 		return json({ error: "Unable to read the queue." }, 500);

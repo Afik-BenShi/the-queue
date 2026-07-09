@@ -1,5 +1,6 @@
 ---
 import Layout from "../layouts/Layout.astro";
+import Queue from "../components/Queue.tsx";
 import { items } from "@wix/data";
 
 type QueueState = {
@@ -27,747 +28,657 @@ try {
 } catch (error) {
 	console.error("Unable to load queue state", error);
 }
-
-const waiting = Math.max(
-	0,
-	Number(initialState.lastIssued ?? 0) - Number(initialState.currentHead ?? 1) + 1,
-);
 ---
 
 <Layout>
-	<main class="surface" data-initial-state={JSON.stringify(initialState)}>
-		<section class="queue-frame" aria-labelledby="title">
-			<div class="mast">
-				<p class="kicker">Wix Headless CMS experiment / collective non-event</p>
-				<h1 id="title">The Queue</h1>
-				<p class="thesis">
-					A line that exists for no reason. Opening the site puts you in it.
-					Leaving the site, or looking away for one minute, removes you.
-				</p>
-			</div>
-
-			<div class="number-panel" aria-live="polite">
-				<p class="label" id="position-label">Your position</p>
-				<div class="position" id="position-value">-</div>
-				<p class="status" id="status-copy">
-					Entering the line...
-				</p>
-			</div>
-
-			<div class="queue-track" aria-label="A compressed visual trace of the line">
-				<div class="track-head">
-					<span>front</span>
-					<span id="track-count">{waiting.toLocaleString()} waiting</span>
-					<span>end</span>
-				</div>
-				<div class="ticks" id="queue-ticks"></div>
-			</div>
-
-			<section class="pass-office" aria-label="Queue pass">
-				<div>
-					<p class="label">Pass over one person</p>
-					<p class="pass-copy">
-						A paid interruption for $0.50. It moves your ticket one number
-						closer and still explains nothing.
-					</p>
-					<p class="pass-status" id="pass-status"></p>
-				</div>
-				<button class="pass-button" id="pass-button" type="button">
-					Buy pass
-				</button>
-			</section>
-
-			<section class="metrics" aria-label="Queue metrics">
-				<div>
-					<span id="current-head">{Number(initialState.currentHead ?? 1).toLocaleString()}</span>
-					<p>now being endured</p>
-				</div>
-				<div>
-					<span id="last-issued">{Number(initialState.lastIssued ?? 0).toLocaleString()}</span>
-					<p>last number issued</p>
-				</div>
-				<div>
-					<span id="departures">{Number(initialState.totalDepartures ?? 0).toLocaleString()}</span>
-					<p>people who gave up usefully</p>
-				</div>
-			</section>
-
-			<p class="fine-print">
-				The tab is your body. Leaving the site ends your turn. Looking away
-				starts a one-minute countdown.
-			</p>
-		</section>
-	</main>
-
-	<script>
-		const root = document.querySelector(".surface");
-		const initial = JSON.parse(root?.getAttribute("data-initial-state") || "{}");
-		const positionValue = document.getElementById("position-value");
-		const positionLabel = document.getElementById("position-label");
-		const statusCopy = document.getElementById("status-copy");
-		const passButton = document.getElementById("pass-button");
-		const passStatus = document.getElementById("pass-status");
-		const trackCount = document.getElementById("track-count");
-		const currentHead = document.getElementById("current-head");
-		const lastIssued = document.getElementById("last-issued");
-		const departures = document.getElementById("departures");
-		const ticks = document.getElementById("queue-ticks");
-
-		const TICK_COUNT = 84;
-		const HEARTBEAT_INTERVAL_MS = 3000;
-		const UNFOCUS_GRACE_MS = 60000;
-		const SESSION_KEY = "the-queue-session-id";
-		const ENTRY_KEY = "the-queue-entry";
-		const PENDING_PASS_KEY = "the-queue-pending-pass-order";
-		const REDEEMED_PASSES_KEY = "the-queue-redeemed-pass-orders";
-
-		let state = initial;
-		let entry = readEntry();
-		let presenceInFlight = false;
-		let joinInFlight = false;
-		let leaveInFlight = false;
-		let unfocusStartedAt = null;
-		let unfocusTimer = null;
-
-		function sessionId() {
-			let value = localStorage.getItem(SESSION_KEY);
-			if (!value) {
-				value = crypto.randomUUID();
-				localStorage.setItem(SESSION_KEY, value);
-			}
-			return value;
-		}
-
-		function readEntry() {
-			try {
-				return JSON.parse(localStorage.getItem(ENTRY_KEY) || "null");
-			} catch {
-				return null;
-			}
-		}
-
-		function saveEntry(nextEntry) {
-			entry = nextEntry;
-			if (nextEntry) localStorage.setItem(ENTRY_KEY, JSON.stringify(nextEntry));
-			else localStorage.removeItem(ENTRY_KEY);
-		}
-
-		function redeemedOrders() {
-			try {
-				const values = JSON.parse(localStorage.getItem(REDEEMED_PASSES_KEY) || "[]");
-				return new Set(Array.isArray(values) ? values : []);
-			} catch {
-				return new Set();
-			}
-		}
-
-		function saveRedeemedOrders(values) {
-			localStorage.setItem(REDEEMED_PASSES_KEY, JSON.stringify([...values]));
-		}
-
-		function format(value) {
-			return Number(value || 0).toLocaleString();
-		}
-
-		function positionFor(ticketNumber, queueState) {
-			if (!ticketNumber) return null;
-			return Math.max(0, Number(ticketNumber) - Number(queueState.currentHead || 1) + 1);
-		}
-
-		function isFocusedHere() {
-			return document.visibilityState === "visible" && document.hasFocus();
-		}
-
-		function isWaiting() {
-			return entry?.status === "waiting";
-		}
-
-		function secondsUntilUnfocusLeave() {
-			if (!unfocusStartedAt) return 60;
-			const remaining = Math.ceil((UNFOCUS_GRACE_MS - (Date.now() - unfocusStartedAt)) / 1000);
-			return Math.max(0, remaining);
-		}
-
-		function drawTicks(waiting, position) {
-			if (!ticks) return;
-			ticks.textContent = "";
-			for (let index = 0; index < TICK_COUNT; index += 1) {
-				const marker = document.createElement("span");
-				const ratio = index / Math.max(1, TICK_COUNT - 1);
-				const queueRatio = waiting > 0 && position ? Math.min(1, position / waiting) : 0;
-				if (position && Math.abs(ratio - queueRatio) < 0.018) {
-					marker.className = "tick you";
-					marker.title = "you";
-				} else if (index === 0) {
-					marker.className = "tick front";
-				} else {
-					marker.className = "tick";
-				}
-				ticks.append(marker);
-			}
-		}
-
-		function render() {
-			const waiting = Math.max(0, Number(state.lastIssued || 0) - Number(state.currentHead || 1) + 1);
-			const position = isWaiting() ? positionFor(entry.ticketNumber, state) : null;
-
-			positionValue.classList.toggle("turn-message", isWaiting() && position <= 1);
-			currentHead.textContent = format(state.currentHead || 1);
-			lastIssued.textContent = format(state.lastIssued || 0);
-			departures.textContent = format(state.totalDepartures || 0);
-			trackCount.textContent = `${format(waiting)} waiting`;
-
-			if (!isFocusedHere() && isWaiting()) {
-				positionLabel.textContent = `Ticket ${format(entry.ticketNumber)}`;
-				positionValue.textContent = format(position);
-				statusCopy.textContent = `Look back within ${secondsUntilUnfocusLeave()} seconds or your place leaves without you.`;
-			} else if (!entry) {
-				positionLabel.textContent = "Your position";
-				positionValue.textContent = "-";
-				statusCopy.textContent = isFocusedHere()
-					? "Entering the line..."
-					: "Focus the site to enter the line.";
-			} else if (entry.status === "left") {
-				positionLabel.textContent = "You left the line";
-				positionValue.textContent = "0";
-				statusCopy.textContent = isFocusedHere()
-					? "Entering again at the end..."
-					: "The line continues without you.";
-			} else if (entry.status === "evicted") {
-				positionLabel.textContent = "You left the line";
-				positionValue.textContent = "0";
-				statusCopy.textContent = isFocusedHere()
-					? "Entering again at the end..."
-					: "The minute passed. Your place is gone.";
-			} else if (position <= 1) {
-				positionLabel.textContent = "Front of the line";
-				positionValue.textContent = "This is your turn, congratulations!";
-				statusCopy.textContent = "Leave to finish your turn.";
-			} else {
-				positionLabel.textContent = `Ticket ${format(entry.ticketNumber)}`;
-				positionValue.textContent = format(position);
-				statusCopy.textContent = "Please continue waiting for no reason.";
-			}
-
-			drawTicks(waiting, position);
-		}
-
-		async function request(path, body, options = {}) {
-			const response = await fetch(path, {
-				method: body ? "POST" : "GET",
-				headers: body ? { "Content-Type": "application/json" } : undefined,
-				body: body ? JSON.stringify(body) : undefined,
-				...options,
-			});
-			if (!response.ok) throw new Error(await response.text());
-			return response.json();
-		}
-
-		function applyQueueData(data) {
-			state = data.state || state;
-			if (data.entry) saveEntry(data.entry);
-			else if (entry?.status === "waiting") saveEntry(null);
-			render();
-		}
-
-		async function joinLine() {
-			if (!isFocusedHere() || joinInFlight || isWaiting()) return;
-			joinInFlight = true;
-			statusCopy.textContent = "Entering the line...";
-			try {
-				const data = await request("/api/queue/join", { sessionId: sessionId() });
-				applyQueueData(data);
-				await tryRedeemPendingPass();
-			} catch (error) {
-				statusCopy.textContent = "The line did not let you in. It will try again.";
-				console.error(error);
-			} finally {
-				joinInFlight = false;
-			}
-		}
-
-		async function refresh() {
-			if (!isFocusedHere()) return;
-			try {
-				const data = await request(`/api/queue/status?sessionId=${encodeURIComponent(sessionId())}`);
-				applyQueueData(data);
-				if (!isWaiting()) await joinLine();
-				await tryRedeemPendingPass();
-			} catch (error) {
-				statusCopy.textContent = "The line briefly became unknowable. It will be asked again.";
-				console.error(error);
-			}
-		}
-
-		async function heartbeat() {
-			if (!isFocusedHere()) {
-				startUnfocusGrace();
-				return;
-			}
-
-			clearUnfocusGrace();
-
-			if (!isWaiting()) {
-				await joinLine();
-				return;
-			}
-
-			if (presenceInFlight) return;
-			presenceInFlight = true;
-			try {
-				const data = await request("/api/queue/heartbeat", { sessionId: sessionId() });
-				applyQueueData(data);
-				if (!isWaiting()) await joinLine();
-				await tryRedeemPendingPass();
-			} catch (error) {
-				statusCopy.textContent = "The line could not see you. Keep this tab focused.";
-				console.error(error);
-			} finally {
-				presenceInFlight = false;
-			}
-		}
-
-		function startUnfocusGrace() {
-			if (!isWaiting()) return;
-			if (!unfocusStartedAt) unfocusStartedAt = Date.now();
-			render();
-			if (unfocusTimer) return;
-			unfocusTimer = window.setInterval(() => {
-				if (isFocusedHere()) {
-					clearUnfocusGrace();
-					heartbeat();
-					return;
-				}
-
-				if (secondsUntilUnfocusLeave() <= 0) {
-					clearUnfocusGrace();
-					leaveLine();
-					return;
-				}
-
-				render();
-			}, 1000);
-		}
-
-		function clearUnfocusGrace() {
-			unfocusStartedAt = null;
-			if (unfocusTimer) window.clearInterval(unfocusTimer);
-			unfocusTimer = null;
-			render();
-		}
-
-		async function leaveLine(useBeacon = false) {
-			if (!isWaiting() || leaveInFlight) return;
-			leaveInFlight = true;
-			const body = JSON.stringify({ sessionId: sessionId() });
-
-			if (useBeacon && navigator.sendBeacon) {
-				navigator.sendBeacon(
-					"/api/queue/leave",
-					new Blob([body], { type: "application/json" }),
-				);
-				saveEntry({
-					...entry,
-					status: "left",
-					leftAt: new Date().toISOString(),
-				});
-				leaveInFlight = false;
-				return;
-			}
-
-			try {
-				const data = await request(
-					"/api/queue/leave",
-					{ sessionId: sessionId() },
-					{ keepalive: true },
-				);
-				applyQueueData(data);
-			} catch (error) {
-				console.error(error);
-			} finally {
-				leaveInFlight = false;
-			}
-		}
-
-		passButton.addEventListener("click", async () => {
-			passButton.disabled = true;
-			passStatus.textContent = "Opening Wix checkout...";
-			try {
-				const data = await request("/api/pass/checkout", {
-					origin: window.location.origin,
-				});
-				window.location.href = data.url;
-			} catch (error) {
-				passStatus.textContent = "The pass office failed to open.";
-				passButton.disabled = false;
-				console.error(error);
-			}
-		});
-
-		async function tryRedeemPendingPass() {
-			const orderId = localStorage.getItem(PENDING_PASS_KEY);
-			if (!orderId) return;
-
-			if (!isWaiting()) {
-				passStatus.textContent = "Pass bought. Entering the line to spend it.";
-				return;
-			}
-
-			const redeemed = redeemedOrders();
-			if (redeemed.has(orderId)) {
-				localStorage.removeItem(PENDING_PASS_KEY);
-				passStatus.textContent = "That pass was already spent.";
-				return;
-			}
-
-			passStatus.textContent = "Spending pass...";
-			try {
-				const data = await request("/api/pass/redeem", {
-					sessionId: sessionId(),
-					orderId,
-				});
-				state = data.state || state;
-				if (data.entry) saveEntry(data.entry);
-				redeemed.add(orderId);
-				saveRedeemedOrders(redeemed);
-				localStorage.removeItem(PENDING_PASS_KEY);
-				passStatus.textContent = data.redemption?.applied
-					? "Pass spent. You moved one person closer."
-					: "Pass spent at the front. It had nowhere to go.";
-				render();
-			} catch (error) {
-				passStatus.textContent = "Pass not spent yet. The line is being difficult.";
-				console.error(error);
-			}
-		}
-
-		function captureCheckoutReturn() {
-			const params = new URLSearchParams(window.location.search);
-			if (params.get("pass") === "cancelled") {
-				passStatus.textContent = "The pass was abandoned. The queue stayed pure.";
-			}
-
-			if (params.get("pass") === "redeem") {
-				const orderId = params.get("orderId") || params.get("orderid");
-				if (orderId) {
-					localStorage.setItem(PENDING_PASS_KEY, orderId);
-					passStatus.textContent = "Pass bought. Preparing to spend it.";
-				} else {
-					passStatus.textContent = "Checkout returned without an order.";
-				}
-			}
-
-			if (params.has("pass")) {
-				window.history.replaceState({}, "", window.location.pathname);
-			}
-		}
-
-		captureCheckoutReturn();
-		render();
-		heartbeat();
-		tryRedeemPendingPass();
-		window.setInterval(heartbeat, HEARTBEAT_INTERVAL_MS);
-		window.addEventListener("focus", heartbeat);
-		window.addEventListener("blur", startUnfocusGrace);
-		document.addEventListener("visibilitychange", () => {
-			if (document.visibilityState === "hidden") startUnfocusGrace();
-			else heartbeat();
-		});
-		window.addEventListener("pagehide", () => leaveLine(true));
-	</script>
+	<Queue client:only="react" initialState={initialState} />
 </Layout>
 
-<style>
-	.surface {
+<style is:global>
+	/* ---------- shared kickers ---------- */
+	.join-kicker,
+	.join-label,
+	.join-note,
+	.pos-label,
+	.pos-sub,
+	.metric-label,
+	.track-head span,
+	.track-note,
+	.wq-fine,
+	.removed-kicker,
+	.removed-note,
+	.turn-kicker,
+	.presence {
+		text-transform: uppercase;
+	}
+
+	/* ============ JOINING ============ */
+	.phase-joining {
 		min-height: 100vh;
-		display: grid;
-		place-items: center;
-		padding: 28px;
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
+		padding: 40px;
+		text-align: center;
+	}
+
+	.join-kicker {
+		font-size: 11px;
+		letter-spacing: 0.4em;
+		color: #7c828c;
+		margin-bottom: 40px;
+	}
+
+	.join-label {
+		font-size: 12px;
+		letter-spacing: 0.3em;
+		color: #7c828c;
+		margin-bottom: 24px;
+		animation: joinflick 1.2s ease-in-out infinite;
+	}
+
+	.join-display {
+		font-size: clamp(56px, 16vw, 160px);
+		font-weight: 300;
+		line-height: 1;
+		letter-spacing: 0.02em;
+		font-variant-numeric: tabular-nums;
+		color: #e6e8ea;
+	}
+
+	.join-bar {
+		margin-top: 48px;
+		height: 1px;
+		width: min(360px, 70vw);
+		background: #1e2228;
 		position: relative;
 		overflow: hidden;
 	}
 
-	.surface::before {
-		content: "";
-		position: fixed;
-		inset: 0;
-		pointer-events: none;
-		background:
-			linear-gradient(120deg, rgba(214, 48, 49, 0.12), transparent 38%),
-			linear-gradient(270deg, rgba(64, 156, 128, 0.12), transparent 45%),
-			linear-gradient(180deg, rgba(245, 242, 234, 0.06), transparent 32%);
-		mix-blend-mode: screen;
+	.join-bar-fill {
+		position: absolute;
+		inset: 0 auto 0 0;
+		width: 40%;
+		background: #d8a63f;
+		animation: joinslide 1.6s ease-in-out infinite;
 	}
 
-	.queue-frame {
-		width: min(1120px, 100%);
-		display: grid;
-		grid-template-columns: minmax(0, 1fr) minmax(320px, 0.74fr);
-		gap: 24px;
-		align-items: stretch;
-		position: relative;
+	.join-note {
+		margin-top: 24px;
+		font-size: 11px;
+		letter-spacing: 0.25em;
+		color: #4a4f57;
 	}
 
-	.mast,
-	.number-panel,
-	.queue-track,
-	.pass-office,
-	.metrics,
-	.fine-print {
-		border: 1px solid rgba(245, 242, 234, 0.18);
-		background: rgba(10, 10, 9, 0.78);
-		backdrop-filter: blur(14px);
-	}
-
-	.mast {
-		padding: clamp(28px, 5vw, 72px);
-		min-height: 440px;
+	/* ============ WAITING ============ */
+	.phase-waiting {
+		min-height: 100vh;
 		display: flex;
 		flex-direction: column;
+	}
+
+	.wq-header {
+		display: flex;
 		justify-content: space-between;
+		align-items: center;
+		gap: 16px;
+		padding: 18px clamp(16px, 4vw, 48px);
+		border-bottom: 1px solid #1e2228;
+		flex-wrap: wrap;
 	}
 
-	.kicker,
-	.label,
-	.status,
-	.fine-print,
-	.track-head,
-	.metrics p {
-		color: #b9b4a8;
-	}
-
-	.kicker {
-		margin: 0;
-		font-size: 0.78rem;
+	.wq-brand {
+		font-size: 12px;
+		letter-spacing: 0.42em;
 		text-transform: uppercase;
-		letter-spacing: 0;
-	}
-
-	h1 {
-		margin: 36px 0 0;
-		font-family: ui-serif, Georgia, "Times New Roman", serif;
-		font-size: clamp(4.5rem, 13vw, 13rem);
+		color: #e6e8ea;
 		font-weight: 500;
-		line-height: 0.82;
 	}
 
-	.thesis {
-		max-width: 680px;
-		margin: 32px 0 0;
-		font-size: clamp(1.15rem, 2vw, 1.55rem);
-		line-height: 1.45;
-		color: #eee8da;
+	.wq-terminal {
+		font-size: 10.5px;
+		letter-spacing: 0.28em;
+		text-transform: uppercase;
+		color: #7c828c;
+		font-variant-numeric: tabular-nums;
 	}
 
-	.number-panel {
-		padding: clamp(24px, 4vw, 48px);
+	.grace-banner {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		gap: 14px;
+		padding: 12px 20px;
+		background: rgba(214, 83, 63, 0.09);
+		border-bottom: 1px solid rgba(214, 83, 63, 0.4);
+		text-align: center;
+	}
+
+	.grace-banner[hidden] {
+		display: none;
+	}
+
+	.grace-dot {
+		width: 7px;
+		height: 7px;
+		border-radius: 50%;
+		background: #d6533f;
+		animation: gracepulse 1s ease-in-out infinite;
+		flex-shrink: 0;
+	}
+
+	.grace-banner span:last-child {
+		font-size: 11px;
+		letter-spacing: 0.24em;
+		text-transform: uppercase;
+		color: #d6533f;
+		font-variant-numeric: tabular-nums;
+	}
+
+	.wq-center {
+		flex: 1;
 		display: flex;
 		flex-direction: column;
+		align-items: center;
 		justify-content: center;
-		min-height: 440px;
+		padding: clamp(32px, 7vh, 80px) clamp(16px, 4vw, 48px);
+		text-align: center;
 	}
 
-	.label {
-		margin: 0 0 10px;
-		font-size: 0.95rem;
-	}
-
-	.position {
-		font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-		font-size: clamp(5.4rem, 15vw, 12rem);
-		line-height: 0.9;
-		font-weight: 700;
-		color: #f7f2e8;
-		font-variant-numeric: tabular-nums;
-		overflow-wrap: anywhere;
-	}
-
-	.position.turn-message {
-		font-family: ui-serif, Georgia, "Times New Roman", serif;
-		font-size: clamp(3rem, 8vw, 8rem);
-		font-weight: 500;
-		line-height: 0.94;
-	}
-
-	.status {
-		min-height: 3.2em;
-		margin: 18px 0 0;
-		font-size: 1rem;
-		line-height: 1.55;
-	}
-
-	.queue-track {
-		grid-column: 1 / -1;
-		padding: 18px;
-	}
-
-	.track-head {
-		display: grid;
-		grid-template-columns: 1fr auto 1fr;
+	.presence-row {
+		display: flex;
+		align-items: center;
 		gap: 12px;
-		font-size: 0.78rem;
+		margin-bottom: clamp(16px, 3vh, 32px);
+		min-height: 12px;
+	}
+
+	.presence {
+		display: inline-flex;
+		align-items: center;
+		gap: 8px;
+		font-size: 10.5px;
+		letter-spacing: 0.28em;
+		color: #7c828c;
+	}
+
+	.presence[hidden] {
+		display: none;
+	}
+
+	.presence .pdot {
+		width: 6px;
+		height: 6px;
+		border-radius: 50%;
+		background: #6c8a5a;
+	}
+
+	.presence.unfocused {
+		color: #d6533f;
+	}
+
+	.presence.unfocused .pdot {
+		background: #d6533f;
+		animation: gracepulse 1s ease-in-out infinite;
+	}
+
+	.pos-label {
+		font-size: 11px;
+		letter-spacing: 0.36em;
 		text-transform: uppercase;
+		color: #7c828c;
+		margin-bottom: clamp(12px, 2.5vh, 28px);
 	}
 
-	.track-head span:last-child {
-		text-align: right;
+	.pos-number {
+		display: flex;
+		align-items: flex-end;
+		justify-content: center;
+		gap: 0.14em;
+		line-height: 0.9;
+		padding-bottom: 0.04em;
 	}
 
-	.ticks {
-		display: grid;
-		grid-template-columns: repeat(84, minmax(2px, 1fr));
-		gap: 4px;
-		margin-top: 16px;
-		min-height: 84px;
-		align-items: end;
+	.pos-number > span:first-child {
+		font-size: clamp(84px, 24vw, 340px);
+		font-weight: 300;
+		letter-spacing: -0.01em;
+		font-variant-numeric: tabular-nums;
+		color: #f2f0ea;
 	}
 
-	.tick {
-		height: 28px;
-		background: rgba(245, 242, 234, 0.2);
-		border-radius: 1px;
+	.caret {
+		width: clamp(14px, 3.4vw, 44px);
+		height: clamp(30px, 7vw, 96px);
+		background: #d8a63f;
+		animation: caretblink 1.1s step-end infinite;
+		margin-bottom: clamp(8px, 2vw, 26px);
+		flex-shrink: 0;
 	}
 
-	.tick:nth-child(5n) {
-		height: 48px;
+	.pos-sub {
+		margin-top: clamp(24px, 4vh, 44px);
+		font-size: 12px;
+		letter-spacing: 0.18em;
+		text-transform: uppercase;
+		color: #7c828c;
 	}
 
-	.tick:nth-child(13n) {
-		height: 68px;
-		background: rgba(245, 242, 234, 0.32);
-	}
-
-	.tick.front {
-		height: 84px;
-		background: #d64a3a;
-	}
-
-	.tick.you {
-		height: 84px;
-		background: #79c7a7;
-		box-shadow: 0 0 0 2px rgba(121, 199, 167, 0.32);
-	}
-
-	.pass-office {
-		grid-column: 1 / -1;
-		display: grid;
-		grid-template-columns: minmax(0, 1fr) minmax(180px, 0.32fr);
-		gap: 12px;
-		align-items: stretch;
-		padding: 16px;
-	}
-
-	.pass-copy {
-		max-width: 660px;
-		margin: 8px 0 0;
-		color: #eee8da;
-		line-height: 1.45;
-	}
-
-	.pass-status {
-		min-height: 1.45em;
-		margin: 10px 0 0;
-		color: #79c7a7;
-		font-size: 0.95rem;
-	}
-
-	button {
-		min-height: 58px;
-		border: 1px solid rgba(245, 242, 234, 0.24);
-		border-radius: 4px;
-		cursor: pointer;
-		transition:
-			transform 160ms ease,
-			background 160ms ease,
-			color 160ms ease,
-			border-color 160ms ease;
-	}
-
-	button:hover:not(:disabled) {
-		transform: translateY(-1px);
-	}
-
-	button:disabled {
-		cursor: not-allowed;
-		opacity: 0.46;
-	}
-
-	.pass-button {
-		background: #79c7a7;
-		color: #0a0a09;
+	.wq-lower {
+		border-top: 1px solid #1e2228;
+		padding: clamp(20px, 4vw, 40px) clamp(16px, 4vw, 48px);
+		display: flex;
+		flex-direction: column;
+		gap: clamp(24px, 4vh, 36px);
+		max-width: 1180px;
+		width: 100%;
+		margin: 0 auto;
 	}
 
 	.metrics {
-		grid-column: 1 / -1;
 		display: grid;
-		grid-template-columns: repeat(3, 1fr);
+		grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+		gap: 1px;
+		background: #1e2228;
+		border: 1px solid #1e2228;
 	}
 
-	.metrics div {
-		padding: 22px;
-		border-right: 1px solid rgba(245, 242, 234, 0.14);
+	.metric {
+		background: #0a0b0d;
+		padding: 18px 20px;
 	}
 
-	.metrics div:last-child {
-		border-right: 0;
+	.metric-label {
+		font-size: 10px;
+		letter-spacing: 0.26em;
+		text-transform: uppercase;
+		color: #7c828c;
+		margin-bottom: 10px;
 	}
 
-	.metrics span {
-		display: block;
-		font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-		font-size: clamp(1.8rem, 4vw, 3.2rem);
+	.metric-value {
+		font-size: 26px;
+		font-weight: 400;
+		font-variant-numeric: tabular-nums;
+		color: #e6e8ea;
+	}
+
+	.track-head {
+		display: flex;
+		justify-content: space-between;
+		align-items: baseline;
+		margin-bottom: 10px;
+	}
+
+	.track-head span {
+		font-size: 10px;
+		letter-spacing: 0.26em;
+		text-transform: uppercase;
+		color: #7c828c;
+	}
+
+	.track {
+		position: relative;
+		height: 76px;
+		border: 1px solid #2a2f37;
+		background: #101216;
+		overflow: hidden;
+	}
+
+	.track-grid {
+		position: absolute;
+		inset: 0;
+		background-image: repeating-linear-gradient(90deg, #2a2f37 0 1px, transparent 1px 9px);
+		opacity: 0.45;
+	}
+
+	.track-fill {
+		position: absolute;
+		top: 0;
+		bottom: 0;
+		left: 0;
+		background: linear-gradient(90deg, rgba(255, 255, 255, 0.015), rgba(255, 255, 255, 0.05));
+		border-right: 1px solid #d8a63f;
+	}
+
+	.track-marker {
+		position: absolute;
+		top: 0;
+		bottom: 0;
+		width: 2px;
+		background: #d8a63f;
+		transform: translateX(-1px);
+		box-shadow: 0 0 10px #d8a63f;
+	}
+
+	.track-you {
+		position: absolute;
+		top: 9px;
+		transform: translateX(-50%);
+		font-size: 9.5px;
+		letter-spacing: 0.18em;
+		color: #d8a63f;
+		white-space: nowrap;
+		font-weight: 600;
+	}
+
+	.track-ticket {
+		position: absolute;
+		bottom: 9px;
+		transform: translateX(-50%);
+		font-size: 9.5px;
+		letter-spacing: 0.06em;
+		color: #7c828c;
+		white-space: nowrap;
+	}
+
+	.track-note {
+		margin-top: 10px;
+		font-size: 10.5px;
+		letter-spacing: 0.14em;
+		text-transform: uppercase;
+		color: #4a4f57;
+	}
+
+	.pass-module {
+		border: 1px solid #2a2f37;
+		display: flex;
+		flex-wrap: wrap;
+		align-items: stretch;
+	}
+
+	.pass-copy-cell {
+		flex: 1 1 260px;
+		padding: 20px 22px;
+		border-right: 1px solid #2a2f37;
+	}
+
+	.pass-title {
+		font-size: 11px;
+		letter-spacing: 0.24em;
+		text-transform: uppercase;
+		color: #e6e8ea;
+		margin-bottom: 10px;
+	}
+
+	.pass-copy {
+		font-size: 12.5px;
+		line-height: 1.6;
+		color: #7c828c;
+		font-family: "IBM Plex Sans", sans-serif;
+		letter-spacing: 0.01em;
+		max-width: 520px;
+	}
+
+	.pass-status {
+		min-height: 1.4em;
+		margin-top: 12px;
+		font-size: 11px;
+		letter-spacing: 0.04em;
+		color: #6c8a5a;
+		font-family: "IBM Plex Sans", sans-serif;
+	}
+
+	.pass-action-cell {
+		flex: 0 0 auto;
+		padding: 20px 22px;
+		display: flex;
+		flex-direction: column;
+		justify-content: center;
+		align-items: flex-start;
+		gap: 12px;
+		min-width: 180px;
+	}
+
+	.pass-price {
+		font-size: 30px;
+		font-weight: 400;
+		font-variant-numeric: tabular-nums;
+		color: #e6e8ea;
+	}
+
+	.pass-button {
+		font-family: "IBM Plex Mono", monospace;
+		font-size: 10.5px;
+		letter-spacing: 0.22em;
+		text-transform: uppercase;
+		color: #0a0b0d;
+		background: #d8a63f;
+		border: none;
+		padding: 12px 20px;
+		cursor: pointer;
+		transition: background 160ms ease;
+	}
+
+	.pass-button:hover:not(:disabled) {
+		background: #e8bd63;
+	}
+
+	.pass-button:disabled {
+		cursor: not-allowed;
+		opacity: 0.5;
+	}
+
+	.wq-fine {
+		font-size: 10px;
+		letter-spacing: 0.16em;
+		text-transform: uppercase;
+		color: #383c43;
+		text-align: center;
+		line-height: 2;
+	}
+
+	.grace-vignette {
+		position: fixed;
+		inset: 0;
+		pointer-events: none;
+		box-shadow: inset 0 0 220px 40px rgba(214, 83, 63, 0.28);
+		animation: vignettepulse 2.2s ease-in-out infinite;
+		z-index: 5;
+	}
+
+	.grace-vignette[hidden] {
+		display: none;
+	}
+
+	/* ============ REMOVED ============ */
+	.phase-removed {
+		min-height: 100vh;
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
+		padding: 40px;
+		text-align: center;
+	}
+
+	.removed-kicker {
+		font-size: 11px;
+		letter-spacing: 0.32em;
+		text-transform: uppercase;
+		color: #d6533f;
+		margin-bottom: 40px;
+	}
+
+	.removed-title {
+		font-size: clamp(28px, 6vw, 58px);
+		font-weight: 300;
+		letter-spacing: 0.01em;
+		line-height: 1.15;
+		color: #e6e8ea;
+		max-width: 14ch;
+	}
+
+	.removed-copy {
+		margin-top: 32px;
+		font-size: 13px;
+		letter-spacing: 0.1em;
+		color: #7c828c;
+		font-family: "IBM Plex Sans", sans-serif;
+		max-width: 44ch;
+		line-height: 1.7;
+	}
+
+	.removed-note {
+		margin-top: 56px;
+		font-size: 10.5px;
+		letter-spacing: 0.26em;
+		text-transform: uppercase;
+		color: #4a4f57;
+	}
+
+	/* ============ TURN ============ */
+	.phase-turn {
+		position: fixed;
+		inset: 0;
+		z-index: 30;
+		background: #f2f0ea;
+		color: #0a0b0d;
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
+		padding: clamp(24px, 5vw, 64px);
+		text-align: center;
+	}
+
+	.turn-kicker {
+		font-size: 11px;
+		letter-spacing: 0.4em;
+		text-transform: uppercase;
+		color: #6b675c;
+		margin-bottom: clamp(24px, 5vh, 56px);
+	}
+
+	.turn-title {
+		font-size: clamp(40px, 8vw, 132px);
+		font-weight: 500;
+		line-height: 0.98;
+		letter-spacing: -0.02em;
+		max-width: 15ch;
+		text-wrap: balance;
+	}
+
+	.turn-note {
+		margin-top: clamp(32px, 6vh, 64px);
+		font-size: clamp(12px, 1.6vw, 15px);
+		letter-spacing: 0.12em;
+		text-transform: uppercase;
+		color: #6b675c;
+	}
+
+	/* ============ PASS RECEIPT OVERLAY ============ */
+	.pass-overlay {
+		position: fixed;
+		inset: 0;
+		z-index: 20;
+		background: rgba(10, 11, 13, 0.86);
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		padding: 24px;
+	}
+
+	.pass-overlay[hidden] {
+		display: none;
+	}
+
+	.receipt {
+		width: min(420px, 100%);
+		border: 1px solid #2a2f37;
+		background: #101216;
+	}
+
+	.receipt-head {
+		padding: 22px 24px;
+		border-bottom: 1px dashed #2a2f37;
+		display: flex;
+		justify-content: space-between;
+		align-items: baseline;
+	}
+
+	.receipt-title {
+		font-size: 11px;
+		letter-spacing: 0.24em;
+		text-transform: uppercase;
+		color: #e6e8ea;
+	}
+
+	.receipt-status {
+		font-size: 10px;
+		letter-spacing: 0.2em;
+		text-transform: uppercase;
+		color: #6c8a5a;
+	}
+
+	.receipt-body {
+		padding: 24px;
+		display: flex;
+		flex-direction: column;
+		gap: 16px;
+	}
+
+	.receipt-row {
+		display: flex;
+		justify-content: space-between;
+		font-size: 12px;
+		letter-spacing: 0.06em;
+		color: #7c828c;
+	}
+
+	.receipt-row .rv {
+		color: #e6e8ea;
 		font-variant-numeric: tabular-nums;
 	}
 
-	.metrics p {
-		margin: 6px 0 0;
+	.receipt-note {
+		border-top: 1px dashed #2a2f37;
+		padding-top: 16px;
+		font-size: 11px;
+		line-height: 1.7;
+		color: #4a4f57;
+		letter-spacing: 0.04em;
+		font-family: "IBM Plex Sans", sans-serif;
 	}
 
-	.fine-print {
-		grid-column: 1 / -1;
-		margin: 0;
-		padding: 18px;
-		font-size: 0.92rem;
-		line-height: 1.45;
+	.receipt-button {
+		margin-top: 4px;
+		font-family: "IBM Plex Mono", monospace;
+		font-size: 10.5px;
+		letter-spacing: 0.22em;
+		text-transform: uppercase;
+		color: #e6e8ea;
+		background: transparent;
+		border: 1px solid #2a2f37;
+		padding: 12px;
+		cursor: pointer;
+		transition: border-color 160ms ease;
 	}
 
-	@media (max-width: 760px) {
-		.surface {
-			padding: 12px;
-			place-items: start center;
-		}
+	.receipt-button:hover {
+		border-color: #4a4f57;
+	}
 
-		.queue-frame {
-			grid-template-columns: 1fr;
-			gap: 12px;
-		}
-
-		.mast,
-		.number-panel {
-			min-height: auto;
-		}
-
-		.pass-office,
-		.metrics {
-			grid-template-columns: 1fr;
-		}
-
-		.metrics div,
-		.metrics div:last-child {
-			border-right: 0;
-			border-bottom: 1px solid rgba(245, 242, 234, 0.14);
-		}
-
-		.metrics div:last-child {
-			border-bottom: 0;
-		}
-
-		.ticks {
-			grid-template-columns: repeat(42, minmax(2px, 1fr));
-		}
-
-		.tick:nth-child(n + 43) {
-			display: none;
-		}
+	/* ============ animations ============ */
+	@keyframes caretblink {
+		0%, 49% { opacity: 1; }
+		50%, 100% { opacity: 0; }
+	}
+	@keyframes gracepulse {
+		0%, 100% { opacity: 0.55; }
+		50% { opacity: 1; }
+	}
+	@keyframes vignettepulse {
+		0%, 100% { opacity: 0.35; }
+		50% { opacity: 0.7; }
+	}
+	@keyframes joinflick {
+		0%, 100% { opacity: 0.85; }
+		50% { opacity: 1; }
+	}
+	@keyframes joinslide {
+		0% { left: -40%; }
+		100% { left: 100%; }
 	}
 </style>

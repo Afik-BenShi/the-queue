@@ -24,7 +24,7 @@ export const POST: APIRoute = async ({ request }) => {
 			const refreshed = await elevatedUpdateEntry(existing, {
 				lastSeenAt: new Date().toISOString(),
 			});
-			return json(snapshot(state, refreshed));
+			return json(await snapshot(state, refreshed));
 		}
 
 		const now = new Date().toISOString();
@@ -42,7 +42,7 @@ export const POST: APIRoute = async ({ request }) => {
 			lastSeenAt: now,
 		});
 
-		return json(snapshot(state, entry));
+		return json(await snapshot(state, entry));
 	} catch (error) {
 		console.error(error);
 		return json({ error: "Unable to join the queue." }, 500);

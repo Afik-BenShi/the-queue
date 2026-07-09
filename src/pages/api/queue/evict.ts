@@ -22,14 +22,14 @@ export const POST: APIRoute = async ({ request }) => {
 		const entry = await findActiveEntry(sessionId);
 
 		if (!entry) {
-			return json(snapshot(state, await findLatestEntry(sessionId)));
+			return json(await snapshot(state, await findLatestEntry(sessionId)));
 		}
 
 		const now = new Date().toISOString();
 		const evictedEntry = await evictEntry(entry, now);
 		state = await advanceStateByDepartures(state, 1, now);
 
-		return json(snapshot(state, evictedEntry));
+		return json(await snapshot(state, evictedEntry));
 	} catch (error) {
 		console.error(error);
 		return json({ error: "Unable to evict your place." }, 500);

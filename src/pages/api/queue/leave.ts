@@ -20,7 +20,7 @@ export const POST: APIRoute = async ({ request }) => {
 		let state = await getState();
 		({ state } = await sweepStaleEntries(state));
 		const entry = await findActiveEntry(sessionId);
-		if (!entry) return json(snapshot(state, await findLatestEntry(sessionId)));
+		if (!entry) return json(await snapshot(state, await findLatestEntry(sessionId)));
 
 		const now = new Date().toISOString();
 		const leftEntry = await elevatedUpdateEntry(entry, {
@@ -30,7 +30,7 @@ export const POST: APIRoute = async ({ request }) => {
 		});
 		state = await advanceStateByDepartures(state, 1, now);
 
-		return json(snapshot(state, leftEntry));
+		return json(await snapshot(state, leftEntry));
 	} catch (error) {
 		console.error(error);
 		return json({ error: "Unable to leave the queue." }, 500);

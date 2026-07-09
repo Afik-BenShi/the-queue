@@ -52,7 +52,7 @@ export const POST: APIRoute = async ({ request }) => {
 
 		if (existingRedemption) {
 			return json({
-				...snapshot(state, entry),
+				...(await snapshot(state, entry)),
 				redemption: {
 					alreadyRedeemed: true,
 					applied: false,
@@ -83,7 +83,7 @@ export const POST: APIRoute = async ({ request }) => {
 		});
 
 		return json({
-			...snapshot(state, movedEntry),
+			...(await snapshot(state, movedEntry)),
 			redemption: {
 				alreadyRedeemed: false,
 				applied: ticketAfter < ticketBefore,

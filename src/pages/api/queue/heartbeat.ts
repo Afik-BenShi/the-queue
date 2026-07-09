@@ -21,14 +21,14 @@ export const POST: APIRoute = async ({ request }) => {
 		const entry = await findActiveEntry(sessionId);
 
 		if (!entry) {
-			return json(snapshot(state, await findLatestEntry(sessionId)));
+			return json(await snapshot(state, await findLatestEntry(sessionId)));
 		}
 
 		const refreshed = await elevatedUpdateEntry(entry, {
 			lastSeenAt: new Date().toISOString(),
 		});
 
-		return json(snapshot(state, refreshed));
+		return json(await snapshot(state, refreshed));
 	} catch (error) {
 		console.error(error);
 		return json({ error: "Unable to keep your place in line." }, 500);
