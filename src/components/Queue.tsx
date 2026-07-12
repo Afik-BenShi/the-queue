@@ -3,6 +3,7 @@ import { useEffect, useReducer, useRef, type FormEvent } from "react";
 type QueueState = {
 	_id?: string;
 	currentHead?: number;
+	nowServing?: number | null;
 	lastIssued?: number;
 	totalDepartures?: number;
 	startingDepth?: number;
@@ -33,16 +34,17 @@ const SESSION_KEY = "the-queue-session-id";
 const ENTRY_KEY = "the-queue-entry";
 const PENDING_PASS_KEY = "the-queue-pending-pass-order";
 const REDEEMED_PASSES_KEY = "the-queue-redeemed-pass-orders";
+const INFORMED_TICKETS_KEY = "the-queue-informed-tickets";
 const TICKET_REPRIMANDS = [
-	{ at: 5, message: "Stop that." },
-	{ at: 11, message: "That's not nice." },
-	{ at: 19, message: "You have been asked to stop." },
-	{ at: 29, message: "This behavior is being noted." },
-	{ at: 41, message: "Continued contact is unnecessary." },
-	{ at: 55, message: "Your ticket has requested space." },
-	{ at: 71, message: "This is your final informal warning." },
-	{ at: 89, message: "Formal warning issued." },
-	{ at: 109, message: "Your ticket has been informed.", informed: true },
+	{ at: 5, message: "Stop that.", severity: 1 },
+	{ at: 11, message: "That's not nice.", severity: 2 },
+	{ at: 19, message: "You have been asked to stop.", severity: 3 },
+	{ at: 29, message: "This behavior is being noted.", severity: 4 },
+	{ at: 41, message: "Continued contact is unnecessary.", severity: 5 },
+	{ at: 55, message: "Your ticket has requested space.", severity: 6 },
+	{ at: 71, message: "This is your final informal warning.", severity: 7, informed: true },
+	{ at: 89, message: "Formal warning issued.", severity: 8 },
+	{ at: 109, message: "Your ticket has been informed.", severity: 9, informed: true },
 ];
 
 const fmt = (v: unknown) => Number(v || 0).toLocaleString();
@@ -67,6 +69,20 @@ function readEntry(): Entry {
 	} catch {
 		return null;
 	}
+}
+
+function readInformedTickets() {
+	try {
+		return new Set<number>(JSON.parse(localStorage.getItem(INFORMED_TICKETS_KEY) || "[]"));
+	} catch {
+		return new Set<number>();
+	}
+}
+
+function rememberInformedTicket(ticketNumber: number) {
+	const informedTickets = readInformedTickets();
+	informedTickets.add(ticketNumber);
+	localStorage.setItem(INFORMED_TICKETS_KEY, JSON.stringify([...informedTickets].slice(-50)));
 }
 
 function redeemedOrders() {
@@ -112,6 +128,7 @@ export default function Queue({ initialState }: { initialState: QueueState }) {
 	const turnTicket = useRef<number | null>(null);
 	const turnClickCount = useRef(0);
 	const turnNotice = useRef("");
+	const turnNoticeSeverity = useRef(0);
 	const turnInformed = useRef(false);
 	const turnNoticeTimer = useRef<number | null>(null);
 	const complaintStatus = useRef("");
@@ -287,10 +304,15 @@ export default function Queue({ initialState }: { initialState: QueueState }) {
 
 		if (!reprimand) return;
 		turnNotice.current = reprimand.message;
-		if (reprimand.informed) turnInformed.current = true;
+		turnNoticeSeverity.current = reprimand.severity;
+		if (reprimand.informed) {
+			turnInformed.current = true;
+			if (entry.current?.ticketNumber) rememberInformedTicket(entry.current.ticketNumber);
+		}
 		if (turnNoticeTimer.current) window.clearTimeout(turnNoticeTimer.current);
 		turnNoticeTimer.current = window.setTimeout(() => {
 			turnNotice.current = "";
+			turnNoticeSeverity.current = 0;
 			render();
 		}, 2200);
 		render();
@@ -488,11 +510,11 @@ export default function Queue({ initialState }: { initialState: QueueState }) {
 	// ---- derive view ----
 	const s = state.current;
 	const e = entry.current;
-	const nowServing = Number(s.currentHead || 1);
 	const lastIssued = Number(s.lastIssued || 0);
 	const span = Math.max(0, Number(s.waiting || 0));
 	const waiting = isWaiting();
 	const position = waiting ? (e?.position ?? null) : null;
+	const nowServing = Number(s.nowServing ?? (position === 1 ? e?.ticketNumber : s.currentHead) ?? 1);
 	const ahead = Math.max(0, (position ?? 1) - 1);
 	const behind = Math.max(0, span - (position ?? span));
 	const focused = typeof document !== "undefined" && isFocusedHere();
@@ -513,7 +535,8 @@ export default function Queue({ initialState }: { initialState: QueueState }) {
 		turnTicket.current = activeTurnTicket;
 		turnClickCount.current = 0;
 		turnNotice.current = "";
-		turnInformed.current = false;
+		turnNoticeSeverity.current = 0;
+		turnInformed.current = activeTurnTicket !== null && readInformedTickets().has(activeTurnTicket);
 	}
 
 	const distanceFromFront = span > 1 && position ? ((position - 1) / (span - 1)) * 100 : 0;
@@ -623,13 +646,16 @@ export default function Queue({ initialState }: { initialState: QueueState }) {
 			<section className="phase phase-turn">
 				{turnInformed.current && (
 					<div className="turn-informed-marker">
-						Ticket {pad(e!.ticketNumber)} informed · Incident recorded
+						Ticket {pad(e!.ticketNumber)} · Final warning recorded
 					</div>
 				)}
 				<div className="turn-kicker">The Queue · Now Serving {pad(e!.ticketNumber)}</div>
 				<div className="turn-title">This is your turn, congratulations!</div>
 				{turnNotice.current && (
-					<div className="ticket-reprimand on-turn" role="status">
+					<div
+						className={`ticket-reprimand on-turn severity-${turnNoticeSeverity.current}`}
+						role="status"
+					>
 						{turnNotice.current}
 					</div>
 				)}
@@ -700,13 +726,16 @@ export default function Queue({ initialState }: { initialState: QueueState }) {
 
 					{turnInformed.current && (
 						<div className="ticket-informed-marker">
-							Ticket {pad(e!.ticketNumber)} informed · Incident recorded
+							Ticket {pad(e!.ticketNumber)} · Final warning recorded
 						</div>
 					)}
 				</div>
 
 				{turnNotice.current && (
-					<div className="ticket-reprimand" role="status">
+					<div
+						className={`ticket-reprimand severity-${turnNoticeSeverity.current}`}
+						role="status"
+					>
 						{turnNotice.current}
 					</div>
 				)}
@@ -762,7 +791,7 @@ export default function Queue({ initialState }: { initialState: QueueState }) {
 							<div className="pass-title">Pass Over One Person</div>
 							<div className="pass-copy">
 								Advance your position by exactly one (1) place. Effect is immediate and permanent.
-								No prize is conferred. Non-refundable. Form 12-A.
+								No prize is conferred. Non-refundable.
 							</div>
 							<div className="pass-status">{passStatus.current}</div>
 						</div>
@@ -779,15 +808,10 @@ export default function Queue({ initialState }: { initialState: QueueState }) {
 						</div>
 					</div>
 
-					<div className="wq-fine">
-						The Queue is a work of collective patience. There is no prize. Leaving or losing focus
-						for one minute releases your place.
-					</div>
-
 					<form className="complaint-form" onSubmit={submitComplaint}>
 						<div className="complaint-heading">
 							<div className="complaint-title">File a Complaint</div>
-							<div className="complaint-reference">Wix Form · Department 4B</div>
+							<div className="complaint-reference">Form 31B · Department 4A</div>
 						</div>
 						<div className="complaint-grid">
 							<label>
@@ -823,6 +847,11 @@ export default function Queue({ initialState }: { initialState: QueueState }) {
 							</button>
 						</div>
 					</form>
+
+					<div className="wq-fine">
+						The Queue is a work of collective patience. There is no prize. Leaving or losing focus
+						for one minute releases your place.
+					</div>
 				</section>
 
 				{graceActive && <div className="grace-vignette" />}

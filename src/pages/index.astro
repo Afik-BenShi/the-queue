@@ -7,6 +7,7 @@ type QueueState = {
 	_id?: string;
 	title?: string;
 	currentHead?: number;
+	nowServing?: number | null;
 	lastIssued?: number;
 	totalDepartures?: number;
 	startingDepth?: number;
@@ -612,6 +613,16 @@ try {
 		border-color: #0a0b0d;
 	}
 
+	.ticket-reprimand.severity-1 { background: #f2e8e6; border-color: #f2e8e6; color: #0a0b0d; }
+	.ticket-reprimand.severity-2 { background: #efd9d5; border-color: #efd9d5; color: #0a0b0d; }
+	.ticket-reprimand.severity-3 { background: #ebc6bf; border-color: #ebc6bf; color: #0a0b0d; }
+	.ticket-reprimand.severity-4 { background: #e5afa5; border-color: #e5afa5; color: #0a0b0d; }
+	.ticket-reprimand.severity-5 { background: #dd9184; border-color: #dd9184; color: #0a0b0d; }
+	.ticket-reprimand.severity-6 { background: #d46f60; border-color: #d46f60; color: #0a0b0d; }
+	.ticket-reprimand.severity-7 { background: #c84f40; border-color: #c84f40; color: #fff; }
+	.ticket-reprimand.severity-8 { background: #a93228; border-color: #a93228; color: #fff; }
+	.ticket-reprimand.severity-9 { background: #7d211b; border-color: #7d211b; color: #fff; }
+
 	.ticket-informed-marker {
 		margin-top: 20px;
 		border: 1px solid #d8a63f;
@@ -632,8 +643,8 @@ try {
 
 	/* ============ COMPLAINT FORM ============ */
 	.complaint-form {
-		border-top: 1px solid #2a2f37;
-		padding-top: clamp(24px, 4vw, 36px);
+		border-bottom: 1px solid #2a2f37;
+		padding-bottom: clamp(24px, 4vw, 36px);
 	}
 
 	.complaint-heading,

@@ -113,6 +113,7 @@ export async function snapshot(state: QueueState, entry?: QueueEntry | null) {
 	const tickets = await getWaitingTickets();
 	const position =
 		isWaiting && ticketNumber ? tickets.filter((t) => t < ticketNumber).length + 1 : null;
+	const nowServing = tickets[0] ?? (isWaiting && position === 1 ? ticketNumber : null);
 	// Include self even if this request's own insert hasn't landed in the index yet.
 	const waiting = Math.max(tickets.length, position ?? 0);
 	const joinedAtMs = entry?.joinedAt ? Date.parse(entry.joinedAt) : Number.NaN;
@@ -124,6 +125,7 @@ export async function snapshot(state: QueueState, entry?: QueueEntry | null) {
 	return {
 		state: {
 			currentHead,
+			nowServing,
 			lastIssued,
 			totalDepartures: Number(state.totalDepartures ?? 0),
 			startingDepth: Number(state.startingDepth ?? lastIssued),
