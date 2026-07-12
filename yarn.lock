@@ -302,7 +302,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@babel/runtime@npm:^7.0.0, @babel/runtime@npm:^7.26.0, @babel/runtime@npm:^7.28.4, @babel/runtime@npm:^7.29.2":
+"@babel/runtime@npm:^7.0.0, @babel/runtime@npm:^7.12.0, @babel/runtime@npm:^7.14.5, @babel/runtime@npm:^7.26.0, @babel/runtime@npm:^7.28.4, @babel/runtime@npm:^7.29.2":
   version: 7.29.7
   resolution: "@babel/runtime@npm:7.29.7::__archiveUrl=https%3A%2F%2Fnpm.dev.wixpress.com%2Fapi%2Fnpm%2Fnpm-repos%2F%40babel%2Fruntime%2F-%2Fruntime-7.29.7.tgz"
   checksum: bc311855c6dbf5356030979584ca0f8b6cee39fe058175b02e85a73e246fc76ae30248b0d40e70c2652101faeb43279468ed2d086a670673eb9783c1fee1df2b
@@ -1502,6 +1502,33 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@internationalized/date@npm:^3.12.2":
+  version: 3.12.2
+  resolution: "@internationalized/date@npm:3.12.2::__archiveUrl=https%3A%2F%2Fnpm.dev.wixpress.com%2Fapi%2Fnpm%2Fnpm-repos%2F%40internationalized%2Fdate%2F-%2Fdate-3.12.2.tgz"
+  dependencies:
+    "@swc/helpers": ^0.5.0
+  checksum: 94688e5dc5b8cb6017e9ed7caf382c10755cbea0e006d5c587758e4338d9d1a65776b9ed2e4dc4194543ea71081895db5b048823e52871bc048eec2ffab40267
+  languageName: node
+  linkType: hard
+
+"@internationalized/number@npm:^3.6.7":
+  version: 3.6.7
+  resolution: "@internationalized/number@npm:3.6.7::__archiveUrl=https%3A%2F%2Fnpm.dev.wixpress.com%2Fapi%2Fnpm%2Fnpm-repos%2F%40internationalized%2Fnumber%2F-%2Fnumber-3.6.7.tgz"
+  dependencies:
+    "@swc/helpers": ^0.5.0
+  checksum: a05ba12b99ce837d17a182d520a48363987da7301cebf4a5588006ef0710d67dd413cb6dd94c1d8811bd43ba6af88ac203b4b1cf3c9ffe2a4d416fa48b50e0d1
+  languageName: node
+  linkType: hard
+
+"@internationalized/string@npm:^3.2.9":
+  version: 3.2.9
+  resolution: "@internationalized/string@npm:3.2.9::__archiveUrl=https%3A%2F%2Fnpm.dev.wixpress.com%2Fapi%2Fnpm%2Fnpm-repos%2F%40internationalized%2Fstring%2F-%2Fstring-3.2.9.tgz"
+  dependencies:
+    "@swc/helpers": ^0.5.0
+  checksum: 5840e28b3ede8f988182e734e12eda6663f234efb0dcff4ecd58fff395fb993ccf0f88eef967bebf4152e78edb2809a6ba05db4af2ca75777eb01906d323f7cb
+  languageName: node
+  linkType: hard
+
 "@isaacs/fs-minipass@npm:^4.0.0":
   version: 4.0.1
   resolution: "@isaacs/fs-minipass@npm:4.0.1::__archiveUrl=https%3A%2F%2Fnpm.dev.wixpress.com%2Fapi%2Fnpm%2Fnpm-repos%2F%40isaacs%2Ffs-minipass%2F-%2Ffs-minipass-4.0.1.tgz"
@@ -1663,6 +1690,15 @@ __metadata:
     "@types/react":
       optional: true
   checksum: 5a78dff8d88232468e488321b274fd578f39e03f8c2118096f48e76fc999c1ec321bbc29e6a47e76edf0caa5fa152d49d5dba206b9850cc08be910c9ff581679
+  languageName: node
+  linkType: hard
+
+"@react-types/shared@npm:^3.36.0":
+  version: 3.36.0
+  resolution: "@react-types/shared@npm:3.36.0::__archiveUrl=https%3A%2F%2Fnpm.dev.wixpress.com%2Fapi%2Fnpm%2Fnpm-repos%2F%40react-types%2Fshared%2F-%2Fshared-3.36.0.tgz"
+  peerDependencies:
+    react: ^16.8.0 || ^17.0.0-rc.1 || ^18.0.0 || ^19.0.0-rc.1
+  checksum: 9bad96efeace90fdfa1b5eda2aec60425cdd1f95ea04ef7e105c949766077f0a712645edcffeb72c3dd69c5f8c417eb9807cf6f68340884d667d823e04b398ac
   languageName: node
   linkType: hard
 
@@ -1943,6 +1979,15 @@ __metadata:
   version: 1.2.17
   resolution: "@speed-highlight/core@npm:1.2.17::__archiveUrl=https%3A%2F%2Fnpm.dev.wixpress.com%2Fapi%2Fnpm%2Fnpm-repos%2F%40speed-highlight%2Fcore%2F-%2Fcore-1.2.17.tgz"
   checksum: f052c60f1a221a8dc34fff1592067ba811eab0a7b094b06e5c45dd0bff0668eed5f812fec8ebc806961ac6f94a77f4bfcf2431f63908b89b8a6e3b85fefbb65d
+  languageName: node
+  linkType: hard
+
+"@swc/helpers@npm:^0.5.0":
+  version: 0.5.23
+  resolution: "@swc/helpers@npm:0.5.23::__archiveUrl=https%3A%2F%2Fnpm.dev.wixpress.com%2Fapi%2Fnpm%2Fnpm-repos%2F%40swc%2Fhelpers%2F-%2Fhelpers-0.5.23.tgz"
+  dependencies:
+    tslib: ^2.8.0
+  checksum: c9282bb0d4711fe83b9072690635948ea2e9a76cc5d09ad7f0bcfbd2c35d0536035af5334aa341fc3bcc2630fc57da7fcb336866913ef0bda52492ada788f9b6
   languageName: node
   linkType: hard
 
@@ -3017,6 +3062,72 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@wix/auto_sdk_forms_chat-settings@npm:1.0.25":
+  version: 1.0.25
+  resolution: "@wix/auto_sdk_forms_chat-settings@npm:1.0.25::__archiveUrl=https%3A%2F%2Fnpm.dev.wixpress.com%2Fapi%2Fnpm%2Fnpm-repos%2F%40wix%2Fauto_sdk_forms_chat-settings%2F-%2F%40wix%2Fauto_sdk_forms_chat-settings-1.0.25.tgz"
+  dependencies:
+    "@wix/sdk-runtime": ^1.0.12
+    "@wix/sdk-types": ^1.17.7
+    zod: ^4.3.6
+  checksum: 3f987db3f4195321b0ff811d1b08ec3e523d15ce65cfdadf5f5ae93b5f37d6e34db937ddcc5cde694018935c36d1ededd221053a450cd5ed8ab943791ac93691
+  languageName: node
+  linkType: hard
+
+"@wix/auto_sdk_forms_form-spam-submission-reports@npm:1.0.37":
+  version: 1.0.37
+  resolution: "@wix/auto_sdk_forms_form-spam-submission-reports@npm:1.0.37::__archiveUrl=https%3A%2F%2Fnpm.dev.wixpress.com%2Fapi%2Fnpm%2Fnpm-repos%2F%40wix%2Fauto_sdk_forms_form-spam-submission-reports%2F-%2F%40wix%2Fauto_sdk_forms_form-spam-submission-reports-1.0.37.tgz"
+  dependencies:
+    "@wix/sdk-runtime": ^1.0.12
+    "@wix/sdk-types": ^1.17.7
+    zod: ^4.3.6
+  checksum: ca4af2ced2e403502152aedc88754f7158e337a27e9b74008b13f833e419a666f7c122e546d01ea57ae24bb89673f5c8270845aed3bd95d457bf220433cc0a93
+  languageName: node
+  linkType: hard
+
+"@wix/auto_sdk_forms_form-submissions@npm:1.0.22":
+  version: 1.0.22
+  resolution: "@wix/auto_sdk_forms_form-submissions@npm:1.0.22::__archiveUrl=https%3A%2F%2Fnpm.dev.wixpress.com%2Fapi%2Fnpm%2Fnpm-repos%2F%40wix%2Fauto_sdk_forms_form-submissions%2F-%2F%40wix%2Fauto_sdk_forms_form-submissions-1.0.22.tgz"
+  dependencies:
+    "@wix/sdk-runtime": ^1.0.12
+    "@wix/sdk-types": ^1.17.7
+    zod: ^4.3.6
+  checksum: 4050e11a15afdff3868c1a664bf77c480c11731935bc223bee1a95a89066bc2267f68c649432afff503a5e573b6602d357e0b56dc598bd249dba669f3cddef00
+  languageName: node
+  linkType: hard
+
+"@wix/auto_sdk_forms_forms@npm:1.0.130":
+  version: 1.0.130
+  resolution: "@wix/auto_sdk_forms_forms@npm:1.0.130::__archiveUrl=https%3A%2F%2Fnpm.dev.wixpress.com%2Fapi%2Fnpm%2Fnpm-repos%2F%40wix%2Fauto_sdk_forms_forms%2F-%2F%40wix%2Fauto_sdk_forms_forms-1.0.130.tgz"
+  dependencies:
+    "@wix/sdk-runtime": ^1.0.12
+    "@wix/sdk-types": ^1.17.7
+    zod: ^4.3.6
+  checksum: 2ee9c93ec8d73d924acf2085d4e1efc8d62d9cb1b2c332dd1e474be4034a1863836774ef1446c5d8be23bfb9b852a02161327fb89eee5d50de49539cdf4cdef2
+  languageName: node
+  linkType: hard
+
+"@wix/auto_sdk_forms_interactive-form-sessions@npm:1.0.66":
+  version: 1.0.66
+  resolution: "@wix/auto_sdk_forms_interactive-form-sessions@npm:1.0.66::__archiveUrl=https%3A%2F%2Fnpm.dev.wixpress.com%2Fapi%2Fnpm%2Fnpm-repos%2F%40wix%2Fauto_sdk_forms_interactive-form-sessions%2F-%2F%40wix%2Fauto_sdk_forms_interactive-form-sessions-1.0.66.tgz"
+  dependencies:
+    "@wix/sdk-runtime": ^1.0.12
+    "@wix/sdk-types": ^1.17.7
+    zod: ^4.3.6
+  checksum: 797487e2610fd8f26dfe32cd84d43f2a270d9311f9920141c2b86ba8fee91855ee4e370b45b533a7b40562f6838e18839f41b2c57e09bce930df9cf0a55b8a16
+  languageName: node
+  linkType: hard
+
+"@wix/auto_sdk_forms_submissions@npm:1.0.138":
+  version: 1.0.138
+  resolution: "@wix/auto_sdk_forms_submissions@npm:1.0.138::__archiveUrl=https%3A%2F%2Fnpm.dev.wixpress.com%2Fapi%2Fnpm%2Fnpm-repos%2F%40wix%2Fauto_sdk_forms_submissions%2F-%2F%40wix%2Fauto_sdk_forms_submissions-1.0.138.tgz"
+  dependencies:
+    "@wix/sdk-runtime": ^1.0.12
+    "@wix/sdk-types": ^1.17.7
+    zod: ^4.3.6
+  checksum: 12cf1c91c0b52119cfd0862b866c8f7086dfa7af6d7babbec80fef4aefd5d668fa6ee2983ad242620386f4b72939168f806f5dc5acf6eb899ab06eab98f55576
+  languageName: node
+  linkType: hard
+
 "@wix/auto_sdk_headless-site-assets_scripts@npm:1.0.13":
   version: 1.0.13
   resolution: "@wix/auto_sdk_headless-site-assets_scripts@npm:1.0.13::__archiveUrl=https%3A%2F%2Fnpm.dev.wixpress.com%2Fapi%2Fnpm%2Fnpm-repos%2F%40wix%2Fauto_sdk_headless-site-assets_scripts%2F-%2F%40wix%2Fauto_sdk_headless-site-assets_scripts-1.0.13.tgz"
@@ -3597,7 +3708,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@wix/essentials@npm:^0.1.24":
+"@wix/essentials@npm:^0.1.24, @wix/essentials@npm:^0.1.28":
   version: 0.1.28
   resolution: "@wix/essentials@npm:0.1.28::__archiveUrl=https%3A%2F%2Fnpm.dev.wixpress.com%2Fapi%2Fnpm%2Fnpm-repos%2F%40wix%2Fessentials%2F-%2Fessentials-0.1.28.tgz"
   dependencies:
@@ -3653,6 +3764,36 @@ __metadata:
     "@babel/runtime": ^7.28.4
     tslib: ^2.8.1
   checksum: b73eda6b91351557a8cd69057ff3704c0a7516b88be1d67284b287222f6b7271e7fb1c81eee1391f3e7bb7dc3a21b970b986284a3b1694565587ef6166dd32b1
+  languageName: node
+  linkType: hard
+
+"@wix/form-public@npm:^0.145.0":
+  version: 0.145.0
+  resolution: "@wix/form-public@npm:0.145.0::__archiveUrl=https%3A%2F%2Fnpm.dev.wixpress.com%2Fapi%2Fnpm%2Fnpm-repos%2F%40wix%2Fform-public%2F-%2F%40wix%2Fform-public-0.145.0.tgz"
+  dependencies:
+    "@wix/essentials": ^0.1.28
+    i18next: ^19.9.2
+    lodash.camelcase: ^4.3.0
+    lodash.mapkeys: ^4.6.0
+    react-i18next: ^11.18.6
+  peerDependencies:
+    react: ^18.3.1
+  checksum: 955957bd6844ed8666d7a0a56c8f4fa9225f47b26c434019c51b2291b3955b1c16c2ed65c5cfb6a3934727749c83951ce9b088eff59094ef9997241c7627afcd
+  languageName: node
+  linkType: hard
+
+"@wix/forms@npm:^1.0.399, @wix/forms@npm:^1.0.462":
+  version: 1.0.462
+  resolution: "@wix/forms@npm:1.0.462::__archiveUrl=https%3A%2F%2Fnpm.dev.wixpress.com%2Fapi%2Fnpm%2Fnpm-repos%2F%40wix%2Fforms%2F-%2F%40wix%2Fforms-1.0.462.tgz"
+  dependencies:
+    "@wix/auto_sdk_forms_chat-settings": 1.0.25
+    "@wix/auto_sdk_forms_form-spam-submission-reports": 1.0.37
+    "@wix/auto_sdk_forms_form-submissions": 1.0.22
+    "@wix/auto_sdk_forms_forms": 1.0.130
+    "@wix/auto_sdk_forms_interactive-form-sessions": 1.0.66
+    "@wix/auto_sdk_forms_submissions": 1.0.138
+    "@wix/headless-forms": 0.0.45
+  checksum: 6eab0c84e6f49d49434449ce4f25eb38eb737f5d64d85bbc809858dd89e8589218137a6d7bc416be7972a8495b082186d2124a03dba9b16764fc61f5d6e43a60
   languageName: node
   linkType: hard
 
@@ -3722,6 +3863,20 @@ __metadata:
   peerDependencies:
     "@wix/headless-components": ^0.0.0
   checksum: 5f9ac3f5b47cfdc50e7cecd90ab5a797184fc1389146f57db1059fcf9b16107fad663081dfdcfdf097172b6937c3e88e113e175b634809819fe53124dad06202
+  languageName: node
+  linkType: hard
+
+"@wix/headless-forms@npm:0.0.45":
+  version: 0.0.45
+  resolution: "@wix/headless-forms@npm:0.0.45::__archiveUrl=https%3A%2F%2Fnpm.dev.wixpress.com%2Fapi%2Fnpm%2Fnpm-repos%2F%40wix%2Fheadless-forms%2F-%2F%40wix%2Fheadless-forms-0.0.45.tgz"
+  dependencies:
+    "@wix/form-public": ^0.145.0
+    "@wix/forms": ^1.0.399
+    "@wix/headless-utils": 0.0.12
+    "@wix/services-definitions": ^1.0.1
+    "@wix/services-manager-react": ^1.0.3
+    react-aria-components: ^1.13.0
+  checksum: f0b080f9b45774bb955193c149aa268576c2a676fbbbd16609743a403042c6fdde51ea914fe208023e79f81092018c69df6d0dca39f636756f99fe98a50e1917
   languageName: node
   linkType: hard
 
@@ -4372,6 +4527,15 @@ __metadata:
   languageName: node
   linkType: hard
 
+"aria-hidden@npm:^1.2.3":
+  version: 1.2.6
+  resolution: "aria-hidden@npm:1.2.6::__archiveUrl=https%3A%2F%2Fnpm.dev.wixpress.com%2Fapi%2Fnpm%2Fnpm-repos%2Faria-hidden%2F-%2Faria-hidden-1.2.6.tgz"
+  dependencies:
+    tslib: ^2.0.0
+  checksum: 56409c55c43ad917607f3f3aa67748dcf30a27e8bb5cb3c5d86b43e38babadd63cd77731a27bc8a8c4332c2291741ed92333bf7ca45f8b99ebc87b94a8070a6e
+  languageName: node
+  linkType: hard
+
 "aria-query@npm:^5.3.2":
   version: 5.3.2
   resolution: "aria-query@npm:5.3.2::__archiveUrl=https%3A%2F%2Fnpm.dev.wixpress.com%2Fapi%2Fnpm%2Fnpm-repos%2Faria-query%2F-%2Faria-query-5.3.2.tgz"
@@ -4674,7 +4838,14 @@ __metadata:
   languageName: node
   linkType: hard
 
-"clsx@npm:^2.1.1":
+"client-only@npm:^0.0.1":
+  version: 0.0.1
+  resolution: "client-only@npm:0.0.1::__archiveUrl=https%3A%2F%2Fnpm.dev.wixpress.com%2Fapi%2Fnpm%2Fnpm-repos%2Fclient-only%2F-%2Fclient-only-0.0.1.tgz"
+  checksum: 0c16bf660dadb90610553c1d8946a7fdfb81d624adea073b8440b7d795d5b5b08beb3c950c6a2cf16279365a3265158a236876d92bce16423c485c322d7dfaf8
+  languageName: node
+  linkType: hard
+
+"clsx@npm:^2.0.0, clsx@npm:^2.1.1":
   version: 2.1.1
   resolution: "clsx@npm:2.1.1::__archiveUrl=https%3A%2F%2Fnpm.dev.wixpress.com%2Fapi%2Fnpm%2Fnpm-repos%2Fclsx%2F-%2Fclsx-2.1.1.tgz"
   checksum: acd3e1ab9d8a433ecb3cc2f6a05ab95fe50b4a3cfc5ba47abb6cbf3754585fcb87b84e90c822a1f256c4198e3b41c7f6c391577ffc8678ad587fc0976b24fd57
@@ -5841,6 +6012,15 @@ __metadata:
   languageName: node
   linkType: hard
 
+"i18next@npm:^19.9.2":
+  version: 19.9.2
+  resolution: "i18next@npm:19.9.2::__archiveUrl=https%3A%2F%2Fnpm.dev.wixpress.com%2Fapi%2Fnpm%2Fnpm-repos%2Fi18next%2F-%2Fi18next-19.9.2.tgz"
+  dependencies:
+    "@babel/runtime": ^7.12.0
+  checksum: a24207707eacb28488975f8921d843bc35b86f2a48504cb82eaf620e1aacddbda8d53a4dc600543a708ba49bc45e61072a753f250e89fad2c1932259190ef81a
+  languageName: node
+  linkType: hard
+
 "i18next@npm:^25.3.2, i18next@npm:^25.6.3":
   version: 25.10.10
   resolution: "i18next@npm:25.10.10::__archiveUrl=https%3A%2F%2Fnpm.dev.wixpress.com%2Fapi%2Fnpm%2Fnpm-repos%2Fi18next%2F-%2Fi18next-25.10.10.tgz"
@@ -6053,6 +6233,20 @@ __metadata:
   version: 4.1.5
   resolution: "kleur@npm:4.1.5::__archiveUrl=https%3A%2F%2Fnpm.dev.wixpress.com%2Fapi%2Fnpm%2Fnpm-repos%2Fkleur%2F-%2Fkleur-4.1.5.tgz"
   checksum: 1dc476e32741acf0b1b5b0627ffd0d722e342c1b0da14de3e8ae97821327ca08f9fb944542fb3c126d90ac5f27f9d804edbe7c585bf7d12ef495d115e0f22c12
+  languageName: node
+  linkType: hard
+
+"lodash.camelcase@npm:^4.3.0":
+  version: 4.3.0
+  resolution: "lodash.camelcase@npm:4.3.0::__archiveUrl=https%3A%2F%2Fnpm.dev.wixpress.com%2Fapi%2Fnpm%2Fnpm-repos%2Flodash.camelcase%2F-%2Flodash.camelcase-4.3.0.tgz"
+  checksum: cb9227612f71b83e42de93eccf1232feeb25e705bdb19ba26c04f91e885bfd3dd5c517c4a97137658190581d3493ea3973072ca010aab7e301046d90740393d1
+  languageName: node
+  linkType: hard
+
+"lodash.mapkeys@npm:^4.6.0":
+  version: 4.6.0
+  resolution: "lodash.mapkeys@npm:4.6.0::__archiveUrl=https%3A%2F%2Fnpm.dev.wixpress.com%2Fapi%2Fnpm%2Fnpm-repos%2Flodash.mapkeys%2F-%2Flodash.mapkeys-4.6.0.tgz"
+  checksum: d433d377b3944c39366741f94ca4be4fb591a6df483fd9e3458da46904d94e2b2471fd7e2d42345e05deb1dc188614ce05cd5b2979a74a7a0f3fbc2cb367c3ca
   languageName: node
   linkType: hard
 
@@ -7199,6 +7393,43 @@ __metadata:
   languageName: node
   linkType: hard
 
+"react-aria-components@npm:^1.13.0":
+  version: 1.19.0
+  resolution: "react-aria-components@npm:1.19.0::__archiveUrl=https%3A%2F%2Fnpm.dev.wixpress.com%2Fapi%2Fnpm%2Fnpm-repos%2Freact-aria-components%2F-%2Freact-aria-components-1.19.0.tgz"
+  dependencies:
+    "@internationalized/date": ^3.12.2
+    "@react-types/shared": ^3.36.0
+    "@swc/helpers": ^0.5.0
+    client-only: ^0.0.1
+    react-aria: 3.50.0
+    react-stately: 3.48.0
+  peerDependencies:
+    react: ^16.8.0 || ^17.0.0-rc.1 || ^18.0.0 || ^19.0.0-rc.1
+    react-dom: ^16.8.0 || ^17.0.0-rc.1 || ^18.0.0 || ^19.0.0-rc.1
+  checksum: 2ae78055441dd105135b109bd7ad13e0fc37b513465edb3a78535f73f74635ef4c13a1d396cc4527cb1189d8edbc051e985ac899ab0bd21ac5a52c2f67369526
+  languageName: node
+  linkType: hard
+
+"react-aria@npm:3.50.0":
+  version: 3.50.0
+  resolution: "react-aria@npm:3.50.0::__archiveUrl=https%3A%2F%2Fnpm.dev.wixpress.com%2Fapi%2Fnpm%2Fnpm-repos%2Freact-aria%2F-%2Freact-aria-3.50.0.tgz"
+  dependencies:
+    "@internationalized/date": ^3.12.2
+    "@internationalized/number": ^3.6.7
+    "@internationalized/string": ^3.2.9
+    "@react-types/shared": ^3.36.0
+    "@swc/helpers": ^0.5.0
+    aria-hidden: ^1.2.3
+    clsx: ^2.0.0
+    react-stately: 3.48.0
+    use-sync-external-store: ^1.6.0
+  peerDependencies:
+    react: ^16.8.0 || ^17.0.0-rc.1 || ^18.0.0 || ^19.0.0-rc.1
+    react-dom: ^16.8.0 || ^17.0.0-rc.1 || ^18.0.0 || ^19.0.0-rc.1
+  checksum: a8136c76c9d9139215147a29fdcdee2fd02a614a704a92c70a59844199b72d8e69261aa409720bac1e5146358479ebdf6a58e6aff93e7d7c6c7ba6a289a0ab39
+  languageName: node
+  linkType: hard
+
 "react-dom@npm:18.3.1":
   version: 18.3.1
   resolution: "react-dom@npm:18.3.1::__archiveUrl=https%3A%2F%2Fnpm.dev.wixpress.com%2Fapi%2Fnpm%2Fnpm-repos%2Freact-dom%2F-%2Freact-dom-18.3.1.tgz"
@@ -7208,6 +7439,24 @@ __metadata:
   peerDependencies:
     react: ^18.3.1
   checksum: 298954ecd8f78288dcaece05e88b570014d8f6dce5db6f66e6ee91448debeb59dcd31561dddb354eee47e6c1bb234669459060deb238ed0213497146e555a0b9
+  languageName: node
+  linkType: hard
+
+"react-i18next@npm:^11.18.6":
+  version: 11.18.6
+  resolution: "react-i18next@npm:11.18.6::__archiveUrl=https%3A%2F%2Fnpm.dev.wixpress.com%2Fapi%2Fnpm%2Fnpm-repos%2Freact-i18next%2F-%2Freact-i18next-11.18.6.tgz"
+  dependencies:
+    "@babel/runtime": ^7.14.5
+    html-parse-stringify: ^3.0.1
+  peerDependencies:
+    i18next: ">= 19.0.0"
+    react: ">= 16.8.0"
+  peerDependenciesMeta:
+    react-dom:
+      optional: true
+    react-native:
+      optional: true
+  checksum: 624c0a0313fac4e0d18560b83c99a8bd0a83abc02e5db8d01984e0643ac409d178668aa3a4720d01f7a0d9520d38598dcbff801d6f69a970bae67461de6cd852
   languageName: node
   linkType: hard
 
@@ -7237,6 +7486,22 @@ __metadata:
   version: 0.17.0
   resolution: "react-refresh@npm:0.17.0::__archiveUrl=https%3A%2F%2Fnpm.dev.wixpress.com%2Fapi%2Fnpm%2Fnpm-repos%2Freact-refresh%2F-%2Freact-refresh-0.17.0.tgz"
   checksum: e9d23a70543edde879263976d7909cd30c6f698fa372a1240142cf7c8bf99e0396378b9c07c2d39c3a10261d7ba07dc49f990cd8f1ac7b88952e99040a0be5e9
+  languageName: node
+  linkType: hard
+
+"react-stately@npm:3.48.0":
+  version: 3.48.0
+  resolution: "react-stately@npm:3.48.0::__archiveUrl=https%3A%2F%2Fnpm.dev.wixpress.com%2Fapi%2Fnpm%2Fnpm-repos%2Freact-stately%2F-%2Freact-stately-3.48.0.tgz"
+  dependencies:
+    "@internationalized/date": ^3.12.2
+    "@internationalized/number": ^3.6.7
+    "@internationalized/string": ^3.2.9
+    "@react-types/shared": ^3.36.0
+    "@swc/helpers": ^0.5.0
+    use-sync-external-store: ^1.6.0
+  peerDependencies:
+    react: ^16.8.0 || ^17.0.0-rc.1 || ^18.0.0 || ^19.0.0-rc.1
+  checksum: 8b0424856746efb89b9027a63895ef80c3f025823d701ed1e032f744f2f8b1c2c4a84f070e2e5b6be6ee022bed24b36e894c7206c3498a2b97bcbf67d53732b5
   languageName: node
   linkType: hard
 
@@ -7941,7 +8206,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"tslib@npm:^2.4.0, tslib@npm:^2.8.0, tslib@npm:^2.8.1":
+"tslib@npm:^2.0.0, tslib@npm:^2.4.0, tslib@npm:^2.8.0, tslib@npm:^2.8.1":
   version: 2.8.1
   resolution: "tslib@npm:2.8.1::__archiveUrl=https%3A%2F%2Fnpm.dev.wixpress.com%2Fapi%2Fnpm%2Fnpm-repos%2Ftslib%2F-%2Ftslib-2.8.1.tgz"
   checksum: e4aba30e632b8c8902b47587fd13345e2827fa639e7c3121074d5ee0880723282411a8838f830b55100cbe4517672f84a2472667d355b81e8af165a55dc6203a
@@ -8445,6 +8710,7 @@ __metadata:
     "@wix/data": ^1.0.486
     "@wix/ecom": ^1.0.2252
     "@wix/essentials": ^1.0.6
+    "@wix/forms": ^1.0.462
     "@wix/redirects": ^1.0.119
     "@wix/sdk": ^1.21.5
     "@wix/stores": ^1.0.827

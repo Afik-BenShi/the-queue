@@ -1,7 +1,8 @@
 import type { APIRoute } from "astro";
 import {
-	advanceStateByDepartures,
+	advanceStateByExits,
 	cleanSessionId,
+	entryHasReachedTurn,
 	evictEntry,
 	findActiveEntry,
 	findLatestEntry,
@@ -25,9 +26,10 @@ export const POST: APIRoute = async ({ request }) => {
 			return json(await snapshot(state, await findLatestEntry(sessionId)));
 		}
 
+		const reachedTurn = await entryHasReachedTurn(entry);
 		const now = new Date().toISOString();
 		const evictedEntry = await evictEntry(entry, now);
-		state = await advanceStateByDepartures(state, 1, now);
+		state = await advanceStateByExits(state, 1, reachedTurn ? 0 : 1, now);
 
 		return json(await snapshot(state, evictedEntry));
 	} catch (error) {

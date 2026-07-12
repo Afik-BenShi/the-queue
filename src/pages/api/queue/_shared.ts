@@ -5,6 +5,7 @@ const STATE_COLLECTION = "queue-state";
 const ENTRIES_COLLECTION = "queue-entries";
 const PASS_REDEMPTIONS_COLLECTION = "pass-redemptions";
 export const HEARTBEAT_TTL_MS = 60000;
+export const MINIMUM_WAIT_MS = 3 * 60 * 1000;
 const MAX_STALE_SWEEP = 100;
 
 type QueueState = {
@@ -101,6 +102,7 @@ export async function getWaitingTickets() {
 }
 
 export async function snapshot(state: QueueState, entry?: QueueEntry | null) {
+	const serverNowMs = Date.now();
 	const currentHead = Number(state.currentHead ?? 1);
 	const lastIssued = Number(state.lastIssued ?? 0);
 	const isWaiting = entry?.status === "waiting";
@@ -113,6 +115,11 @@ export async function snapshot(state: QueueState, entry?: QueueEntry | null) {
 		isWaiting && ticketNumber ? tickets.filter((t) => t < ticketNumber).length + 1 : null;
 	// Include self even if this request's own insert hasn't landed in the index yet.
 	const waiting = Math.max(tickets.length, position ?? 0);
+	const joinedAtMs = entry?.joinedAt ? Date.parse(entry.joinedAt) : Number.NaN;
+	const eligibleAtMs = Number.isFinite(joinedAtMs) ? joinedAtMs + MINIMUM_WAIT_MS : null;
+	const remainingMs = eligibleAtMs === null ? MINIMUM_WAIT_MS : Math.max(0, eligibleAtMs - serverNowMs);
+	const isFirst = isWaiting && position === 1;
+	const canTakeTurn = isFirst && remainingMs === 0;
 
 	return {
 		state: {
@@ -136,6 +143,14 @@ export async function snapshot(state: QueueState, entry?: QueueEntry | null) {
 		presence: {
 			heartbeatTtlMs: HEARTBEAT_TTL_MS,
 			requiresFocus: true,
+		},
+		turn: {
+			minimumWaitMs: MINIMUM_WAIT_MS,
+			serverNow: new Date(serverNowMs).toISOString(),
+			eligibleAt: eligibleAtMs === null ? null : new Date(eligibleAtMs).toISOString(),
+			remainingMs,
+			isFirst,
+			canTakeTurn,
 		},
 	};
 }
@@ -182,20 +197,34 @@ async function findStaleEntries(now = Date.now()) {
 	return (result.items as QueueEntry[]) ?? [];
 }
 
-export async function advanceStateByDepartures(
+export async function advanceStateByExits(
 	state: QueueState,
-	count: number,
+	exitCount: number,
+	departureCount = exitCount,
 	now = new Date().toISOString(),
 ) {
-	if (count <= 0) return state;
+	if (exitCount <= 0) return state;
 
 	const currentHead = Number(state.currentHead ?? 1);
 	const lastIssued = Number(state.lastIssued ?? currentHead);
 	return elevatedUpdateState(state, {
-		currentHead: Math.min(lastIssued + 1, currentHead + count),
-		totalDepartures: Number(state.totalDepartures ?? 0) + count,
+		currentHead: Math.min(lastIssued + 1, currentHead + exitCount),
+		totalDepartures: Number(state.totalDepartures ?? 0) + departureCount,
 		updatedAt: now,
 	});
+}
+
+function hasReachedTurn(entry: QueueEntry, waitingTickets: number[], nowMs: number) {
+	if (entry.status !== "waiting" || !entry.ticketNumber || !entry.joinedAt) return false;
+	const joinedAtMs = Date.parse(entry.joinedAt);
+	if (!Number.isFinite(joinedAtMs) || joinedAtMs + MINIMUM_WAIT_MS > nowMs) return false;
+
+	const ticketNumber = Number(entry.ticketNumber);
+	return !waitingTickets.some((waitingTicket) => waitingTicket < ticketNumber);
+}
+
+export async function entryHasReachedTurn(entry: QueueEntry, nowMs = Date.now()) {
+	return hasReachedTurn(entry, await getWaitingTickets(), nowMs);
 }
 
 export async function evictEntry(entry: QueueEntry, now = new Date().toISOString()) {
@@ -213,12 +242,17 @@ export async function sweepStaleEntries(state?: QueueState) {
 		return { state: nextState, evicted: [] as QueueEntry[] };
 	}
 
-	const now = new Date().toISOString();
+	const nowMs = Date.now();
+	const now = new Date(nowMs).toISOString();
+	const waitingTickets = await getWaitingTickets();
+	const departureCount = staleEntries.filter(
+		(entry) => !hasReachedTurn(entry, waitingTickets, nowMs),
+	).length;
 	const evicted: QueueEntry[] = [];
 	for (const entry of staleEntries) {
 		evicted.push(await evictEntry(entry, now));
 	}
 
-	nextState = await advanceStateByDepartures(nextState, evicted.length, now);
+	nextState = await advanceStateByExits(nextState, evicted.length, departureCount, now);
 	return { state: nextState, evicted };
 }

@@ -1,5 +1,5 @@
 import type { APIRoute } from "astro";
-import { currentCart } from "@wix/ecom";
+import { checkout } from "@wix/ecom";
 import { redirects } from "@wix/redirects";
 import { getPassCatalogReference, getPassProduct } from "../../../lib/pass";
 import { json } from "../queue/_shared";
@@ -28,22 +28,8 @@ export const POST: APIRoute = async ({ request }) => {
 
 		const product = await getPassProduct();
 		const catalogReference = await getPassCatalogReference(product._id);
-
-		try {
-			const cart = await currentCart.getCurrentCart();
-			const passLineIds = (cart.lineItems ?? [])
-				.filter((lineItem) => lineItem.catalogReference?.catalogItemId === product._id)
-				.map((lineItem) => lineItem._id)
-				.filter((lineItemId): lineItemId is string => Boolean(lineItemId));
-
-			if (passLineIds.length > 0) {
-				await currentCart.removeLineItemsFromCurrentCart(passLineIds);
-			}
-		} catch {
-			// A visitor may not have a cart yet; adding below creates one.
-		}
-
-		await currentCart.addToCurrentCart({
+		const createdCheckout = await checkout.createCheckout({
+			channelType: checkout.ChannelType.WEB,
 			lineItems: [
 				{
 					quantity: 1,
@@ -51,17 +37,26 @@ export const POST: APIRoute = async ({ request }) => {
 				},
 			],
 		});
+		const passLineItem = createdCheckout.lineItems.find(
+			(lineItem) =>
+				lineItem.catalogReference.catalogItemId === product._id &&
+				lineItem.quantity === 1,
+		);
 
-		const checkout = await currentCart.createCheckoutFromCurrentCart({
-			channelType: currentCart.ChannelType.WEB,
-		});
-
-		if (!checkout.checkoutId) {
-			throw new Error("Wix checkout did not return a checkout ID.");
+		if (!createdCheckout._id || !passLineItem) {
+			console.error(
+				"Unexpected Wix checkout response",
+				JSON.stringify({
+					checkoutId: createdCheckout._id,
+					calculationErrors: createdCheckout.calculationErrors,
+					violations: createdCheckout.violations,
+				}),
+			);
+			throw new Error("Wix checkout did not include the pass line item.");
 		}
 
 		const session = await redirects.createRedirectSession({
-			ecomCheckout: { checkoutId: checkout.checkoutId },
+			ecomCheckout: { checkoutId: createdCheckout._id },
 			callbacks: {
 				thankYouPageUrl: callbackUrl(origin, "redeem"),
 				postFlowUrl: callbackUrl(origin, "cancelled"),

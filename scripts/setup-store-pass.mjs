@@ -118,6 +118,42 @@ async function queryProducts() {
   return result.json.products ?? result.json.items ?? [];
 }
 
+async function getProduct(productId) {
+  const result = await wix(`/stores/v3/products/${productId}`, null, "GET");
+  if (!result.ok) {
+    throw new Error(`Failed to get product: ${result.status} ${JSON.stringify(result.json)}`);
+  }
+
+  return result.json.product;
+}
+
+async function uploadPassFile() {
+  const uploadUrlResult = await wix("/site-media/v1/files/generate-upload-url", {
+    mimeType: "text/plain",
+    fileName: "the-queue-pass.txt",
+    private: true,
+  });
+
+  if (!uploadUrlResult.ok || !uploadUrlResult.json.uploadUrl) {
+    throw new Error(
+      `Failed to generate pass file upload URL: ${uploadUrlResult.status} ${JSON.stringify(uploadUrlResult.json)}`,
+    );
+  }
+
+  const uploadResponse = await fetch(uploadUrlResult.json.uploadUrl, {
+    method: "PUT",
+    headers: { "Content-Type": "text/plain" },
+    body: "This file is the receipt for one gloriously pointless place in The Queue.\n",
+  });
+  const uploadJson = await uploadResponse.json();
+
+  if (!uploadResponse.ok || !uploadJson.file?.id) {
+    throw new Error(`Failed to upload pass file: ${uploadResponse.status} ${JSON.stringify(uploadJson)}`);
+  }
+
+  return uploadJson.file.id;
+}
+
 async function deleteProducts(productIds) {
   if (productIds.length === 0) return;
   const result = await wix("/stores/v3/bulk/products/delete", { productIds });
@@ -148,7 +184,7 @@ function richTextDescription() {
   };
 }
 
-async function createPassProduct() {
+async function createPassProduct(digitalFileId) {
   const result = await wix("/stores/v3/bulk/products-with-inventory/create", {
     products: [
       {
@@ -165,6 +201,7 @@ async function createPassProduct() {
               visible: true,
               price: { actualPrice: { amount: "0.50" } },
               inventoryItem: { inStock: true, preorderInfo: { enabled: false } },
+              digitalProperties: { digitalFile: { id: digitalFileId } },
               choices: [],
             },
           ],
@@ -210,9 +247,24 @@ await createCollection({
 let products = await queryProducts();
 let passProduct = products.find((product) => product.handle === PASS_HANDLE);
 
+if (passProduct) {
+  const productId = passProduct.id ?? passProduct._id;
+  const fullProduct = await getProduct(productId);
+  const hasDigitalFile = fullProduct.variantsInfo?.variants?.some(
+    (variant) => variant.digitalProperties?.digitalFile?.id,
+  );
+
+  if (!hasDigitalFile) {
+    await deleteProducts([productId]);
+    products = products.filter((product) => (product.id ?? product._id) !== productId);
+    passProduct = undefined;
+  }
+}
+
 if (!passProduct) {
   await deleteProducts(products.map((product) => product.id ?? product._id).filter(Boolean));
-  passProduct = await createPassProduct();
+  const digitalFileId = await uploadPassFile();
+  passProduct = await createPassProduct(digitalFileId);
   products = await queryProducts();
   passProduct = products.find((product) => product.handle === PASS_HANDLE) ?? passProduct;
 }

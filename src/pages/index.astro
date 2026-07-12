@@ -238,6 +238,8 @@ try {
 		gap: 0.14em;
 		line-height: 0.9;
 		padding-bottom: 0.04em;
+		cursor: pointer;
+		user-select: none;
 	}
 
 	.pos-number > span:first-child {
@@ -268,6 +270,7 @@ try {
 	.wq-lower {
 		border-top: 1px solid #1e2228;
 		padding: clamp(20px, 4vw, 40px) clamp(16px, 4vw, 48px);
+		box-sizing: border-box;
 		display: flex;
 		flex-direction: column;
 		gap: clamp(24px, 4vh, 36px);
@@ -326,20 +329,13 @@ try {
 		overflow: hidden;
 	}
 
-	.track-grid {
-		position: absolute;
-		inset: 0;
-		background-image: repeating-linear-gradient(90deg, #2a2f37 0 1px, transparent 1px 9px);
-		opacity: 0.45;
-	}
-
 	.track-fill {
 		position: absolute;
 		top: 0;
 		bottom: 0;
 		left: 0;
-		background: linear-gradient(90deg, rgba(255, 255, 255, 0.015), rgba(255, 255, 255, 0.05));
-		border-right: 1px solid #d8a63f;
+		background: linear-gradient(90deg, rgba(216, 166, 63, 0.03), rgba(216, 166, 63, 0.1));
+		border-right: 1px solid rgba(216, 166, 63, 0.35);
 	}
 
 	.track-marker {
@@ -349,7 +345,13 @@ try {
 		width: 2px;
 		background: #d8a63f;
 		transform: translateX(-1px);
-		box-shadow: 0 0 10px #d8a63f;
+		box-shadow: 0 0 10px rgba(216, 166, 63, 0.5);
+	}
+
+	.track-you,
+	.track-ticket,
+	.track-counts {
+		text-transform: uppercase;
 	}
 
 	.track-you {
@@ -358,9 +360,9 @@ try {
 		transform: translateX(-50%);
 		font-size: 9.5px;
 		letter-spacing: 0.18em;
+		font-weight: 600;
 		color: #d8a63f;
 		white-space: nowrap;
-		font-weight: 600;
 	}
 
 	.track-ticket {
@@ -373,12 +375,26 @@ try {
 		white-space: nowrap;
 	}
 
-	.track-note {
-		margin-top: 10px;
-		font-size: 10.5px;
+	.track-counts {
+		display: grid;
+		grid-template-columns: 1fr auto 1fr;
+		align-items: center;
+		gap: 16px;
+		padding-top: 12px;
+		border-top: 1px solid #1e2228;
+		font-size: 9.5px;
 		letter-spacing: 0.14em;
-		text-transform: uppercase;
 		color: #4a4f57;
+	}
+
+	.track-counts strong {
+		font-weight: 500;
+		color: #e6e8ea;
+		text-align: center;
+	}
+
+	.track-counts span:last-child {
+		text-align: right;
 	}
 
 	.pass-module {
@@ -558,6 +574,52 @@ try {
 		letter-spacing: -0.02em;
 		max-width: 15ch;
 		text-wrap: balance;
+		user-select: none;
+	}
+
+	.turn-informed-marker {
+		position: absolute;
+		top: clamp(20px, 4vw, 44px);
+		right: clamp(20px, 4vw, 44px);
+		border: 1px solid #0a0b0d;
+		padding: 9px 12px;
+		font-size: 9px;
+		letter-spacing: 0.18em;
+		text-transform: uppercase;
+		font-weight: 600;
+	}
+
+	.ticket-reprimand {
+		position: fixed;
+		left: 50%;
+		bottom: clamp(28px, 6vh, 64px);
+		transform: translateX(-50%);
+		z-index: 40;
+		background: #f2f0ea;
+		color: #0a0b0d;
+		border: 1px solid #f2f0ea;
+		padding: 12px 16px;
+		font-size: 11px;
+		letter-spacing: 0.12em;
+		text-transform: uppercase;
+		white-space: nowrap;
+		animation: reprimand-in 120ms ease-out;
+	}
+
+	.ticket-reprimand.on-turn {
+		background: #0a0b0d;
+		color: #f2f0ea;
+		border-color: #0a0b0d;
+	}
+
+	.ticket-informed-marker {
+		margin-top: 20px;
+		border: 1px solid #d8a63f;
+		color: #d8a63f;
+		padding: 8px 11px;
+		font-size: 9px;
+		letter-spacing: 0.18em;
+		text-transform: uppercase;
 	}
 
 	.turn-note {
@@ -566,6 +628,125 @@ try {
 		letter-spacing: 0.12em;
 		text-transform: uppercase;
 		color: #6b675c;
+	}
+
+	/* ============ COMPLAINT FORM ============ */
+	.complaint-form {
+		border-top: 1px solid #2a2f37;
+		padding-top: clamp(24px, 4vw, 36px);
+	}
+
+	.complaint-heading,
+	.complaint-footer {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 20px;
+	}
+
+	.complaint-heading {
+		margin-bottom: 20px;
+	}
+
+	.complaint-title,
+	.complaint-reference,
+	.complaint-form label > span {
+		text-transform: uppercase;
+	}
+
+	.complaint-title {
+		font-size: 11px;
+		letter-spacing: 0.24em;
+		color: #e6e8ea;
+	}
+
+	.complaint-reference {
+		font-size: 9px;
+		letter-spacing: 0.2em;
+		color: #4a4f57;
+	}
+
+	.complaint-grid {
+		display: grid;
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+		gap: 16px;
+	}
+
+	.complaint-form label {
+		display: flex;
+		flex-direction: column;
+		gap: 9px;
+	}
+
+	.complaint-form label > span {
+		font-size: 9px;
+		letter-spacing: 0.18em;
+		color: #7c828c;
+	}
+
+	.complaint-text-field {
+		grid-column: 1 / -1;
+	}
+
+	.complaint-form select,
+	.complaint-form textarea {
+		width: 100%;
+		box-sizing: border-box;
+		border: 1px solid #2a2f37;
+		border-radius: 0;
+		background: #101216;
+		color: #e6e8ea;
+		font: 12px "IBM Plex Sans", sans-serif;
+		letter-spacing: 0;
+		padding: 12px 14px;
+		outline: none;
+	}
+
+	.complaint-form select {
+		height: 42px;
+	}
+
+	.complaint-form textarea {
+		resize: vertical;
+		min-height: 112px;
+		line-height: 1.5;
+	}
+
+	.complaint-form select:focus,
+	.complaint-form textarea:focus {
+		border-color: #7c828c;
+	}
+
+	.complaint-footer {
+		margin-top: 16px;
+	}
+
+	.complaint-status {
+		min-height: 1.5em;
+		font: 11px/1.5 "IBM Plex Sans", sans-serif;
+		color: #6c8a5a;
+		letter-spacing: 0;
+	}
+
+	.complaint-button {
+		flex: 0 0 auto;
+		border: 1px solid #4a4f57;
+		background: transparent;
+		color: #e6e8ea;
+		font: 10px "IBM Plex Mono", monospace;
+		letter-spacing: 0.2em;
+		text-transform: uppercase;
+		padding: 12px 16px;
+		cursor: pointer;
+	}
+
+	.complaint-button:hover:not(:disabled) {
+		border-color: #e6e8ea;
+	}
+
+	.complaint-button:disabled {
+		opacity: 0.5;
+		cursor: not-allowed;
 	}
 
 	/* ============ PASS RECEIPT OVERLAY ============ */
@@ -680,5 +861,40 @@ try {
 	@keyframes joinslide {
 		0% { left: -40%; }
 		100% { left: 100%; }
+	}
+	@keyframes reprimand-in {
+		from { opacity: 0; transform: translate(-50%, 5px); }
+		to { opacity: 1; transform: translate(-50%, 0); }
+	}
+
+	@media (max-width: 620px) {
+		.complaint-grid {
+			grid-template-columns: 1fr;
+		}
+
+		.complaint-text-field {
+			grid-column: auto;
+		}
+
+		.complaint-footer {
+			align-items: stretch;
+			flex-direction: column;
+		}
+
+		.complaint-button {
+			width: 100%;
+		}
+
+		.turn-informed-marker {
+			left: 20px;
+			right: 20px;
+			text-align: center;
+		}
+
+		.ticket-reprimand {
+			white-space: normal;
+			width: calc(100% - 40px);
+			text-align: center;
+		}
 	}
 </style>

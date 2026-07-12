@@ -1,4 +1,4 @@
-import { useEffect, useReducer, useRef } from "react";
+import { useEffect, useReducer, useRef, type FormEvent } from "react";
 
 type QueueState = {
 	_id?: string;
@@ -12,16 +12,38 @@ type QueueState = {
 type Entry = {
 	ticketNumber?: number;
 	status?: "waiting" | "left" | "evicted";
+	joinedAt?: string;
 	leftAt?: string;
 	position?: number | null;
 } | null;
 
+type TurnState = {
+	minimumWaitMs: number;
+	serverNow: string;
+	eligibleAt: string | null;
+	remainingMs: number;
+	isFirst: boolean;
+	canTakeTurn: boolean;
+};
+
 const HEARTBEAT_INTERVAL_MS = 3000;
 const UNFOCUS_GRACE_MS = 60000;
+const DEFAULT_MINIMUM_WAIT_MS = 3 * 60 * 1000;
 const SESSION_KEY = "the-queue-session-id";
 const ENTRY_KEY = "the-queue-entry";
 const PENDING_PASS_KEY = "the-queue-pending-pass-order";
 const REDEEMED_PASSES_KEY = "the-queue-redeemed-pass-orders";
+const TICKET_REPRIMANDS = [
+	{ at: 5, message: "Stop that." },
+	{ at: 11, message: "That's not nice." },
+	{ at: 19, message: "You have been asked to stop." },
+	{ at: 29, message: "This behavior is being noted." },
+	{ at: 41, message: "Continued contact is unnecessary." },
+	{ at: 55, message: "Your ticket has requested space." },
+	{ at: 71, message: "This is your final informal warning." },
+	{ at: 89, message: "Formal warning issued." },
+	{ at: 109, message: "Your ticket has been informed.", informed: true },
+];
 
 const fmt = (v: unknown) => Number(v || 0).toLocaleString();
 const pad = (v: unknown) => "#" + String(Math.max(0, Number(v) || 0)).padStart(5, "0");
@@ -85,11 +107,32 @@ export default function Queue({ initialState }: { initialState: QueueState }) {
 	const passBtnDisabled = useRef(false);
 	const passOverlay = useRef<{ from: number; to: number } | null>(null);
 	const checkoutUrl = useRef<string | null>(null);
+	const turn = useRef<TurnState | null>(null);
+	const serverClockOffset = useRef(0);
+	const turnTicket = useRef<number | null>(null);
+	const turnClickCount = useRef(0);
+	const turnNotice = useRef("");
+	const turnInformed = useRef(false);
+	const turnNoticeTimer = useRef<number | null>(null);
+	const complaintStatus = useRef("");
+	const complaintSubmitting = useRef(false);
 
 	const isWaiting = () => entry.current?.status === "waiting";
 	const secondsUntilUnfocusLeave = () => {
 		if (!unfocusStartedAt.current) return 60;
 		return Math.max(0, Math.ceil((UNFOCUS_GRACE_MS - (Date.now() - unfocusStartedAt.current)) / 1000));
+	};
+	const minimumWaitRemainingMs = () => {
+		const eligibleAt = turn.current?.eligibleAt;
+		if (eligibleAt) {
+			return Math.max(0, Date.parse(eligibleAt) - (Date.now() + serverClockOffset.current));
+		}
+
+		const joinedAt = entry.current?.joinedAt;
+		if (!joinedAt) return DEFAULT_MINIMUM_WAIT_MS;
+		const joinedAtMs = Date.parse(joinedAt);
+		if (!Number.isFinite(joinedAtMs)) return DEFAULT_MINIMUM_WAIT_MS;
+		return Math.max(0, joinedAtMs + DEFAULT_MINIMUM_WAIT_MS - Date.now());
 	};
 
 	function saveEntry(next: Entry) {
@@ -100,6 +143,11 @@ export default function Queue({ initialState }: { initialState: QueueState }) {
 
 	function applyQueueData(data: any) {
 		state.current = data.state || state.current;
+		if (data.turn) {
+			turn.current = data.turn;
+			const serverNow = Date.parse(data.turn.serverNow);
+			if (Number.isFinite(serverNow)) serverClockOffset.current = serverNow - Date.now();
+		}
 		if (data.entry) saveEntry(data.entry);
 		else if (entry.current?.status === "waiting") saveEntry(null);
 		render();
@@ -233,6 +281,51 @@ export default function Queue({ initialState }: { initialState: QueueState }) {
 		}
 	}
 
+	function clickQueuePlace() {
+		turnClickCount.current += 1;
+		const reprimand = TICKET_REPRIMANDS.find(({ at }) => at === turnClickCount.current);
+
+		if (!reprimand) return;
+		turnNotice.current = reprimand.message;
+		if (reprimand.informed) turnInformed.current = true;
+		if (turnNoticeTimer.current) window.clearTimeout(turnNoticeTimer.current);
+		turnNoticeTimer.current = window.setTimeout(() => {
+			turnNotice.current = "";
+			render();
+		}, 2200);
+		render();
+	}
+
+	async function submitComplaint(event: FormEvent<HTMLFormElement>) {
+		event.preventDefault();
+		if (complaintSubmitting.current) return;
+		complaintSubmitting.current = true;
+		complaintStatus.current = "Routing complaint...";
+		render();
+		const form = event.currentTarget;
+		const data = new FormData(form);
+
+		try {
+			await request("/api/complaint", {
+				category: data.get("category"),
+				complaint: data.get("complaint"),
+				outcome: data.get("outcome"),
+				sessionId: sessionId(),
+				ticketNumber: entry.current?.ticketNumber,
+				position: entry.current?.position,
+			});
+			form.reset();
+			complaintStatus.current =
+				"Complaint received. It has been placed in the complaint queue. Current position: unavailable.";
+		} catch (error) {
+			complaintStatus.current = "Complaint rejected on procedural grounds. Try again.";
+			console.error(error);
+		} finally {
+			complaintSubmitting.current = false;
+			render();
+		}
+	}
+
 	function closeCheckout() {
 		checkoutUrl.current = null;
 		passBtnDisabled.current = false;
@@ -280,8 +373,7 @@ export default function Queue({ initialState }: { initialState: QueueState }) {
 		const positionBefore = entry.current?.position ?? null;
 		try {
 			const data = await request("/api/pass/redeem", { sessionId: sessionId(), orderId });
-			state.current = data.state || state.current;
-			if (data.entry) saveEntry(data.entry);
+			applyQueueData(data);
 			redeemed.add(orderId);
 			localStorage.setItem(REDEEMED_PASSES_KEY, JSON.stringify([...redeemed]));
 			localStorage.removeItem(PENDING_PASS_KEY);
@@ -383,6 +475,7 @@ export default function Queue({ initialState }: { initialState: QueueState }) {
 			window.clearInterval(clockTimer);
 			window.clearInterval(beat);
 			if (unfocusTimer.current) window.clearInterval(unfocusTimer.current);
+			if (turnNoticeTimer.current) window.clearTimeout(turnNoticeTimer.current);
 			window.removeEventListener("focus", onFocus);
 			window.removeEventListener("blur", onBlur);
 			document.removeEventListener("visibilitychange", onVis);
@@ -401,16 +494,30 @@ export default function Queue({ initialState }: { initialState: QueueState }) {
 	const waiting = isWaiting();
 	const position = waiting ? (e?.position ?? null) : null;
 	const ahead = Math.max(0, (position ?? 1) - 1);
-	const behind = Math.max(0, span - 1);
+	const behind = Math.max(0, span - (position ?? span));
 	const focused = typeof document !== "undefined" && isFocusedHere();
 	const graceActive = waiting && !!unfocusStartedAt.current && !focused;
+	const minimumRemainingMs = waiting ? minimumWaitRemainingMs() : DEFAULT_MINIMUM_WAIT_MS;
+	const minimumRemainingSeconds = Math.ceil(minimumRemainingMs / 1000);
+	const firstInLine = waiting && (turn.current?.isFirst ?? (position ?? 0) <= 1);
+	const minimumWaitComplete = minimumRemainingMs === 0;
+	const turnAvailable = turn.current?.canTakeTurn === true || (firstInLine && minimumWaitComplete);
 
 	let phase: "joining" | "waiting" | "turn" | "removed" = "joining";
 	if (e && (e.status === "left" || e.status === "evicted")) phase = "removed";
-	else if (waiting && (position ?? 0) <= 1) phase = "turn";
+	else if (turnAvailable) phase = "turn";
 	else if (waiting) phase = "waiting";
 
-	const pct = span > 0 && position ? Math.max(3, Math.min(95, (position / span) * 100)) : 3;
+	const activeTurnTicket = waiting ? (e?.ticketNumber ?? null) : null;
+	if (turnTicket.current !== activeTurnTicket) {
+		turnTicket.current = activeTurnTicket;
+		turnClickCount.current = 0;
+		turnNotice.current = "";
+		turnInformed.current = false;
+	}
+
+	const distanceFromFront = span > 1 && position ? ((position - 1) / (span - 1)) * 100 : 0;
+	const markerPosition = Math.max(2.5, Math.min(97.5, 100 - distanceFromFront));
 
 	// Rendered outside the phase switch so it survives a waiting→turn flip mid-purchase.
 	const checkoutModal = checkoutUrl.current ? (
@@ -514,8 +621,18 @@ export default function Queue({ initialState }: { initialState: QueueState }) {
 	} else if (phase === "turn") {
 		content = (
 			<section className="phase phase-turn">
+				{turnInformed.current && (
+					<div className="turn-informed-marker">
+						Ticket {pad(e!.ticketNumber)} informed · Incident recorded
+					</div>
+				)}
 				<div className="turn-kicker">The Queue · Now Serving {pad(e!.ticketNumber)}</div>
 				<div className="turn-title">This is your turn, congratulations!</div>
+				{turnNotice.current && (
+					<div className="ticket-reprimand on-turn" role="status">
+						{turnNotice.current}
+					</div>
+				)}
 					<div className="turn-note">
 						 {
               behind === 0? "nobody is"
@@ -570,16 +687,29 @@ export default function Queue({ initialState }: { initialState: QueueState }) {
 
 					<div className="pos-label">Your position in line</div>
 
-					<div className="pos-number">
+					<div className="pos-number" onClick={clickQueuePlace}>
 						<span>{fmt(position)}</span>
 						<span className="caret" />
 					</div>
 
 					<div className="pos-sub">
-						{fmt(ahead)} {ahead === 1 ? "person" : "people"} ahead of you · ticket{" "}
-						{pad(e!.ticketNumber)}
+						{firstInLine && !minimumWaitComplete
+							? `You are first · turn available in ${mmss(minimumRemainingSeconds)}`
+							: `${fmt(ahead)} ${ahead === 1 ? "person" : "people"} ahead of you · ticket ${pad(e!.ticketNumber)}`}
 					</div>
+
+					{turnInformed.current && (
+						<div className="ticket-informed-marker">
+							Ticket {pad(e!.ticketNumber)} informed · Incident recorded
+						</div>
+					)}
 				</div>
+
+				{turnNotice.current && (
+					<div className="ticket-reprimand" role="status">
+						{turnNotice.current}
+					</div>
+				)}
 
 				<section className="wq-lower">
 					<div className="metrics">
@@ -595,26 +725,35 @@ export default function Queue({ initialState }: { initialState: QueueState }) {
 							<div className="metric-label">Total departures</div>
 							<div className="metric-value">{fmt(s.totalDepartures)}</div>
 						</div>
+						<div className="metric">
+							<div className="metric-label">Minimum stay</div>
+							<div className="metric-value">
+								{minimumWaitComplete ? "CLEARED" : mmss(minimumRemainingSeconds)}
+							</div>
+						</div>
 					</div>
 
 					<div className="track-block">
 						<div className="track-head">
-							<span>Front {pad(nowServing)}</span>
-							<span>End {pad(lastIssued)}</span>
+							<span>Back of line</span>
+							<span>Front of line</span>
 						</div>
-						<div className="track">
-							<div className="track-grid" />
-							<div className="track-fill" style={{ width: `${pct}%` }} />
-							<div className="track-marker" style={{ left: `${pct}%` }} />
-							<div className="track-you" style={{ left: `${pct}%` }}>
-								YOU
-							</div>
-							<div className="track-ticket" style={{ left: `${pct}%` }}>
+						<div
+							className="track"
+							role="img"
+							aria-label={`You are position ${fmt(position)} of ${fmt(span)}. ${fmt(ahead)} ahead and ${fmt(behind)} behind.`}
+						>
+							<div className="track-fill" style={{ width: `${markerPosition}%` }} />
+							<div className="track-marker" style={{ left: `${markerPosition}%` }} />
+							<div className="track-you" style={{ left: `${markerPosition}%` }}>You</div>
+							<div className="track-ticket" style={{ left: `${markerPosition}%` }}>
 								{pad(e!.ticketNumber)}
 							</div>
 						</div>
-						<div className="track-note">
-							{fmt(span)} visitors currently in line · you are {fmt(position)} from the front
+						<div className="track-counts">
+							<span>{fmt(behind)} behind</span>
+							<strong>Position {fmt(position)} of {fmt(span)}</strong>
+							<span>{fmt(ahead)} ahead</span>
 						</div>
 					</div>
 
@@ -644,6 +783,46 @@ export default function Queue({ initialState }: { initialState: QueueState }) {
 						The Queue is a work of collective patience. There is no prize. Leaving or losing focus
 						for one minute releases your place.
 					</div>
+
+					<form className="complaint-form" onSubmit={submitComplaint}>
+						<div className="complaint-heading">
+							<div className="complaint-title">File a Complaint</div>
+							<div className="complaint-reference">Wix Form · Department 4B</div>
+						</div>
+						<div className="complaint-grid">
+							<label>
+								<span>Complaint category</span>
+								<select name="category" required defaultValue="">
+									<option value="" disabled>Select category</option>
+									<option value="line_moved">The line moved</option>
+									<option value="line_did_not_move">The line did not move</option>
+									<option value="someone_ahead">Someone is ahead of me</option>
+									<option value="someone_behind">Someone is behind me</option>
+									<option value="number_feels_incorrect">My number feels incorrect</option>
+									<option value="other">Other procedural concern</option>
+								</select>
+							</label>
+							<label>
+								<span>Requested outcome</span>
+								<select name="outcome" required defaultValue="">
+									<option value="" disabled>Select outcome</option>
+									<option value="acknowledgement">Official acknowledgement</option>
+									<option value="no_action">A thorough lack of action</option>
+									<option value="referral">Referral to another department</option>
+								</select>
+							</label>
+							<label className="complaint-text-field">
+								<span>Complaint</span>
+								<textarea name="complaint" required maxLength={1000} rows={5} />
+							</label>
+						</div>
+						<div className="complaint-footer">
+							<div className="complaint-status" role="status">{complaintStatus.current}</div>
+							<button className="complaint-button" type="submit" disabled={complaintSubmitting.current}>
+								File Complaint
+							</button>
+						</div>
+					</form>
 				</section>
 
 				{graceActive && <div className="grace-vignette" />}

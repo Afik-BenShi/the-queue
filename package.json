@@ -13,7 +13,8 @@
     "generate": "wix generate",
     "env": "wix env",
     "skills": "wix skills",
-    "setup:store-pass": "node scripts/setup-store-pass.mjs"
+    "setup:store-pass": "node scripts/setup-store-pass.mjs",
+    "setup:complaint-form": "node scripts/setup-complaint-form.mjs"
   },
   "dependencies": {
     "@wix/astro": "^2.13.0",
@@ -22,6 +23,7 @@
     "@wix/data": "^1.0.486",
     "@wix/ecom": "^1.0.2252",
     "@wix/essentials": "^1.0.6",
+    "@wix/forms": "^1.0.462",
     "@wix/redirects": "^1.0.119",
     "@wix/sdk": "^1.21.5",
     "@wix/stores": "^1.0.827",
