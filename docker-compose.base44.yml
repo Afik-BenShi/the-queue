@@ -1,0 +1,44 @@
+# Base44 dev environment: runs the Astro dev server from the cloned source with live reload.
+# The committed yarn.lock resolves packages from Wix's internal registry (npm.dev.wixpress.com),
+# which isn't reachable here; at startup we write a copy pointing at the public npm registry
+# to .yarn/yarn.base44.lock (gitignored) and install from it with --immutable.
+services:
+  web:
+    image: node:22
+    working_dir: /app
+    volumes:
+      - .:/app
+      - node_modules:/app/node_modules
+      - yarn_cache:/root/.yarn/berry
+    env_file:
+      - ./.env.base44-defaults
+      - /run/base44/app.env
+    environment:
+      - __VITE_ADDITIONAL_SERVER_ALLOWED_HOSTS
+      - COREPACK_ENABLE_DOWNLOAD_PROMPT=0
+      - YARN_NPM_REGISTRY_SERVER=https://registry.npmjs.org
+      - YARN_LOCKFILE_FILENAME=.yarn/yarn.base44.lock
+      - ASTRO_TELEMETRY_DISABLED=1
+      - CHOKIDAR_USEPOLLING=true
+    command:
+      - sh
+      - -ec
+      - |
+        mkdir -p .yarn
+        sed -E 's#npm.dev.wixpress.com%2Fapi%2Fnpm%2Fnpm-repos%2F(%40[^%]+)%2F([^%]+)%2F-%2F%40[^%]+%2F#registry.npmjs.org%2F\1%2F\2%2F-%2F#g; s#npm.dev.wixpress.com%2Fapi%2Fnpm%2Fnpm-repos%2F#registry.npmjs.org%2F#g; s#npm.dev.wixpress.com%252Fapi%252Fnpm%252Fnpm-repos%252F#registry.npmjs.org%252F#g' yarn.lock > .yarn/yarn.base44.lock
+        corepack enable
+        CI=true yarn install --immutable
+        exec yarn astro dev --host 0.0.0.0 --port 4321
+    ports:
+      - "3000:4321"
+    restart: on-failure
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:4321/').then(r=>{if(r.status>=500){console.error('web: HTTP '+r.status);process.exit(1)}}).catch(e=>{console.error('web: '+e.message);process.exit(1)})"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 180s
+
+volumes:
+  node_modules:
+  yarn_cache:

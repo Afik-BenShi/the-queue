@@ -1,0 +1,25 @@
+{
+  "previewPort": 3000,
+  "healthPath": "/",
+  "startCommand": "docker compose -f docker-compose.base44.yml up -d",
+  "secrets": [
+    {
+      "name": "WIX_CLIENT_SECRET",
+      "description": "Wix headless app secret (from `npx wix env pull` → .env.local).",
+      "requiredAtBoot": true,
+      "generatedForDevelopment": true
+    },
+    {
+      "name": "WIX_CLIENT_PUBLIC_KEY",
+      "description": "Wix app public key (from `npx wix env pull` → .env.local).",
+      "requiredAtBoot": true,
+      "generatedForDevelopment": true
+    },
+    {
+      "name": "WIX_CLIENT_INSTANCE_ID",
+      "description": "Wix app instance ID for the site (from `npx wix env pull` → .env.local).",
+      "requiredAtBoot": true,
+      "generatedForDevelopment": true
+    }
+  ]
+}
